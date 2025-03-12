@@ -1,1 +1,8 @@
+# Ignore json keys
 keys/
+
+# Ignore Terraform directories and state files
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
