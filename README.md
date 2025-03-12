@@ -86,6 +86,64 @@ Ensure you have the following installed:
  
 ## **💻 Setup Instructions**
 
+### **🛠 Setting Up Terraform**
+
+#### **Pre-requisites:**
+Before proceeding, ensure the following steps are completed:
+- **Create a GCP project**: `spotify-sandbox`
+- **Set up a service account** with the following roles:
+  - Storage Admin
+  - BigQuery Admin
+  - Compute Admin
+- **Download the JSON key file** and store it securely (e.g., in the `keys/` directory).
+
+---
+
+#### **1. Ensure Terraform is Installed**
+- If Terraform is not installed, download it from [Terraform's official site](https://developer.hashicorp.com/terraform/downloads).
+- Verify installation:
+  ```bash
+  terraform -v
+     ```
+
+2. **Navigate to the Terraform Directory**
+   ```bash
+   cd spotify_pipeline/terraform
+   ```
+
+3. **Create and Configure Terraform Files**
+    - main.tf → Defines infrastructure resources (e.g., GCS bucket, BigQuery dataset).
+    - variables.tf → Stores reusable values (e.g., project ID, bucket name, region).
+
+4. **Initialize Terraform** (only needed for the first time):
+   ```bash
+   terraform init
+   ```
+    - This downloads the required Google provider and sets up the working directory.
+
+5. **Validate and Preview Terraform Changes**:
+   ```bash
+   terraform plan
+   ```
+   - This checks for any errors and previews what Terraform will create.
+
+6. **Apply Terraform to Create Resources**:
+   ```bash
+   terraform apply
+   ```
+   - Type **yes** when prompted to confirm resource creation.
+
+7. **Verify the Created Resources**:
+   - **Check the GCS bucket:**
+     ```bash
+     gcloud storage buckets list
+     ```
+   - **Check the BigQuery dataset:**
+     ```bash
+     bq ls
+     ```
+
+
 ### **📥 Setting Up Kaggle API**  
 1. Install the Kaggle API package if you haven't already:  
    ```bash
