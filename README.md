@@ -16,6 +16,9 @@ To achieve this, we implement a **batch data pipeline** that processes and visua
  
 ## **🛠️ Technologies Used**  
  
+## **📥 Data Extraction with Kaggle API**  
+This project uses the **Kaggle API** to download the dataset directly from Kaggle. The API allows automated and reproducible data extraction without manual downloads.  
+ 
 | **Component**              | **Technology**   | **Purpose** |
 |----------------------------|-----------------|-------------|
 | **Infrastructure as Code (IaC)** | Terraform | Provisioning cloud resources |
@@ -81,33 +84,28 @@ Ensure you have the following installed:
 - **dbt**
 - **Looker Studio (Google Account required)**
  
-### **💻 Setup Instructions**
-1️⃣ **Clone the repository**  
-```bash
-git clone <repository-url>
-cd <project-folder>
-```
- 
-2️⃣ **Provision Cloud Resources with Terraform**  
-```bash
-terraform init
-terraform apply
-```
- 
-3️⃣ **Run the Kestra Workflow for Data Ingestion**  
-```bash
-kestra deployment apply
-kestra flow run spotify_ingestion
-```
- 
-4️⃣ **Transform Data with dbt**  
-```bash
-dbt run
-```
- 
-5️⃣ **Access the Dashboard in Looker Studio**  
-- Open the Looker Studio link: `<dashboard-url>`
- 
+## **💻 Setup Instructions**
+
+### **📥 Setting Up Kaggle API**  
+1. Install the Kaggle API package if you haven't already:  
+   ```bash
+   pip install kaggle
+   ```  
+2. Authenticate by placing your Kaggle API key (`kaggle.json`) in the correct directory:  
+   ```bash
+   mkdir -p ~/.kaggle
+   mv kaggle.json ~/.kaggle/
+   chmod 600 ~/.kaggle/kaggle.json
+   ```  
+3. Download the dataset using the Kaggle API:  
+   ```bash
+   kaggle datasets download -d asaniczka/top-spotify-songs-in-73-countries-daily-updated
+   ```  
+4. Unzip the dataset:  
+   ```bash
+   unzip top-spotify-songs-in-73-countries-daily-updated.zip -d data/
+   ```
+   
 ---
  
 ## **📌 Next Steps**  
