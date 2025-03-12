@@ -16,7 +16,7 @@ To achieve this, we implement a **batch data pipeline** that processes and visua
  
 ## **🛠️ Technologies Used**  
  
-## **📥 Data Extraction with Kaggle API**  
+### **📥 Data Extraction with Kaggle API**  
 This project uses the **Kaggle API** to download the dataset directly from Kaggle. The API allows automated and reproducible data extraction without manual downloads.  
  
 | **Component**              | **Technology**   | **Purpose** |
@@ -105,7 +105,7 @@ Ensure you have the following installed:
    ```bash
    unzip top-spotify-songs-in-73-countries-daily-updated.zip -d data/
    ```
-   
+
 ---
  
 ## **📌 Next Steps**  
