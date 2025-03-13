@@ -31,5 +31,12 @@ resource "google_storage_bucket" "spotify_radu_bucket" {
 resource "google_bigquery_dataset" "spotify_radu_dataset" {
   dataset_id  = var.bq_dataset_name
   project     = var.project_id
-  location   = var.location
+  location    = var.location
+}
+
+resource "google_bigquery_table" "spotify_songs" {
+  dataset_id = google_bigquery_dataset.spotify_radu_dataset.dataset_id
+  table_id   = var.bigquery_table_id
+  project    = var.project_id
+  schema     = var.bigquery_table_schema
 }
