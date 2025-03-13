@@ -157,12 +157,30 @@ Before proceeding, ensure the following steps are completed:
    ```  
 3. Download the dataset using the Kaggle API:  
    ```bash
-   kaggle datasets download -d asaniczka/top-spotify-songs-in-73-countries-daily-updated
+   kaggle datasets download -d asaniczka/top-spotify-songs-in-73-countries-daily-updated -p data/
    ```  
 4. Unzip the dataset:  
    ```bash
    unzip top-spotify-songs-in-73-countries-daily-updated.zip -d data/
    ```
+
+### **Upload the Dataset to GCS**  
+1. Before uploading, make sure you have set up Google Cloud authentication:  
+```bash  
+export GOOGLE_APPLICATION_CREDENTIALS="keys/project.json"  
+```  
+2. Now, upload the dataset to your Google Cloud Storage (GCS) bucket:  
+```bash  
+gsutil cp data/top-spotify-songs-in-73-countries-daily-updated.csv gs://spotify_radu_bucket/raw_data/  
+```  
+3. After uploading, confirm that the file is in your bucket:  
+```bash  
+gsutil ls gs://spotify_radu_bucket/raw_data/  
+```  
+4. Expected output:  
+```  
+gs://spotify_radu_bucket/raw_data/top-spotify-songs-in-73-countries-daily-updated.csv  
+```  
 
 ---
  
