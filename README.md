@@ -259,15 +259,14 @@ Now that we have the table created, we can load the data from GCS:
 bq load \
   --source_format=CSV \
   --skip_leading_rows=1 \
-  --autodetect \
-  spotify-sandbox:spotify_radu_dataset.spotify_top_songs \
+  spotify-sandbox-453505:spotify_radu_dataset.spotify_top_songs \
   gs://spotify_radu_bucket/raw_data/top-spotify-songs-in-73-countries-daily-updated.csv
 ```
 7. Verify Data in BigQuery
 Run:
 ```bash
 bq query --nouse_legacy_sql \
-'SELECT * FROM `spotify-sandbox.spotify_radu_dataset.spotify_top_songs` LIMIT 10'
+'SELECT * FROM `spotify-sandbox-453505.spotify_radu_dataset.spotify_top_songs` LIMIT 10'
 ```
 
 ---
