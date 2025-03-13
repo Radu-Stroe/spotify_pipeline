@@ -182,6 +182,94 @@ gsutil ls gs://spotify_radu_bucket/raw_data/
 gs://spotify_radu_bucket/raw_data/top-spotify-songs-in-73-countries-daily-updated.csv  
 ```  
 
+### **📀 Loading Data into BigQuery**
+
+1. Verify the File in GCS
+Before loading the data, ensure that the file is correctly stored in your GCS bucket.
+```
+gsutil ls gs://spotify_radu_bucket/raw_data/
+```
+2. Define the BigQuery Table Schema in Terraform
+Inside terraform/variables.tf, ensure the schema is properly stored as a variable:
+```
+variable "bigquery_table_id" {
+  description = "Table ID for the BigQuery table"
+  default     = "spotify_top_songs"
+}
+
+variable "bigquery_table_schema" {
+  description = "Schema for the BigQuery table"
+  default = <<EOF
+[
+  {"name": "spotify_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "name", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "artists", "type": "STRING", "mode": "REQUIRED"}, 
+  {"name": "daily_rank", "type": "INTEGER", "mode": "REQUIRED"},
+  {"name": "daily_movement", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "weekly_movement", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "country", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "snapshot_date", "type": "DATE", "mode": "REQUIRED"},
+  {"name": "popularity", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "is_explicit", "type": "BOOLEAN", "mode": "NULLABLE"},
+  {"name": "duration_ms", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "album_name", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "album_release_date", "type": "DATE", "mode": "NULLABLE"},
+  {"name": "danceability", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "energy", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "key", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "loudness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "mode", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "speechiness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "acousticness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "instrumentalness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "liveness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "valence", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "tempo", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "time_signature", "type": "INTEGER", "mode": "NULLABLE"}
+]
+EOF
+}
+```
+3. Define BigQuery Table in Terraform
+Inside terraform/main.tf, ensure the table creation is defined using the variables:
+```
+resource "google_bigquery_table" "spotify_songs" {
+  dataset_id = google_bigquery_dataset.spotify_radu_dataset.dataset_id
+  table_id   = var.bigquery_table_id
+  project    = var.project_id
+  schema     = var.bigquery_table_schema
+}
+```
+4. Apply Terraform Changes
+After adding the table definition, run Terraform to create the table in BigQuery:
+```bash
+cd terraform
+terraform init  # If not already initialized
+terraform plan
+terraform apply
+```
+5. Verify That the Table Was Created
+Run:
+```bash
+bq ls spotify_radu_dataset
+```
+6. Load Data from GCS into BigQuery
+Now that we have the table created, we can load the data from GCS:
+```bash
+bq load \
+  --source_format=CSV \
+  --skip_leading_rows=1 \
+  --autodetect \
+  spotify-sandbox:spotify_radu_dataset.spotify_top_songs \
+  gs://spotify_radu_bucket/raw_data/top-spotify-songs-in-73-countries-daily-updated.csv
+```
+7. Verify Data in BigQuery
+Run:
+```bash
+bq query --nouse_legacy_sql \
+'SELECT * FROM `spotify-sandbox.spotify_radu_dataset.spotify_top_songs` LIMIT 10'
+```
+
 ---
  
 ## **📌 Next Steps**  
