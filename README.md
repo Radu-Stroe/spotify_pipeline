@@ -170,7 +170,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="keys/project.json"
 ```  
 2. Now, upload the dataset to your Google Cloud Storage (GCS) bucket:  
 ```bash  
-gsutil cp data/top-spotify-songs-in-73-countries-daily-updated.csv gs://spotify_radu_bucket/raw_data/  
+gsutil cp data/universal_top_spotify_songs.csv gs://spotify_radu_bucket/raw_data/  
 ```  
 3. After uploading, confirm that the file is in your bucket:  
 ```bash  
@@ -178,7 +178,7 @@ gsutil ls gs://spotify_radu_bucket/raw_data/
 ```  
 4. Expected output:  
 ```  
-gs://spotify_radu_bucket/raw_data/top-spotify-songs-in-73-countries-daily-updated.csv  
+gs://spotify_radu_bucket/raw_data/universal_top_spotify_songs.csv  
 ```  
 
 ### **📀 Loading Data into BigQuery**
@@ -259,7 +259,7 @@ bq load \
   --source_format=CSV \
   --skip_leading_rows=1 \
   spotify-sandbox-453505:spotify_radu_dataset.spotify_top_songs \
-  gs://spotify_radu_bucket/raw_data/top-spotify-songs-in-73-countries-daily-updated.csv
+  gs://spotify_radu_bucket/raw_data/universal_top_spotify_songs.csv
 ```
 7. Verify Data in BigQuery
 Run:
@@ -328,7 +328,7 @@ Kestra requires credentials to interact with Kaggle and Google Cloud. Add them s
 1. In Kestra UI, go to **Flows → Create Flow**
 2. Name it **spotify_ingestion**
 3. Paste the following YAML code:
-   ```yaml
+```yaml
 id: spotify_ingestion  
 namespace: spotify_pipeline
 description: "Automated pipeline: Download Spotify dataset from Kaggle, upload to GCS, and load into BigQuery."
@@ -382,7 +382,7 @@ tasks:
       allowJaggedRows: true
       encoding: UTF-8
       fieldDelimiter: ","
-    writeDisposition: WRITE_TRUNCATE  # ✅ Overwrites existing data with fresh data
+    writeDisposition: WRITE_TRUNCATE
     schema:
       fields:
         - name: spotify_id
@@ -461,7 +461,7 @@ tasks:
           type: INT64
           mode: NULLABLE
     autodetect: false
-   ```
+```
 4. Save and Deploy the flow.
 
 ---
