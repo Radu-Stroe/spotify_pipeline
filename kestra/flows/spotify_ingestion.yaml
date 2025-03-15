@@ -51,7 +51,7 @@ tasks:
       allowJaggedRows: true
       encoding: UTF-8
       fieldDelimiter: ","
-    writeDisposition: WRITE_TRUNCATE  # ✅ Overwrites existing data with fresh data
+    writeDisposition: WRITE_TRUNCATE
     schema:
       fields:
         - name: spotify_id
