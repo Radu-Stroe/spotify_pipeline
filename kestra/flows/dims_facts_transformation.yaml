@@ -1,0 +1,20 @@
+id: dims_facts_transformation
+namespace: spotify_pipeline
+description: "Scheduled transformation for dims and fact tables"
+
+triggers:
+  - id: daily_schedule
+    type: io.kestra.core.models.triggers.types.Schedule
+    cron: "0 1 * * *"  # Runs every day at 01:00 AM UTC
+
+tasks:
+  - id: run_dbt_transformations
+    type: io.kestra.plugin.scripts.shell.Commands
+    description: "Run dbt transformations for dims and fact tables"
+    containerImage: "ghcr.io/dbt-labs/dbt-bigquery:1.6.5"
+    workingDir: "/app/dbt_project"
+    volumes:
+      - "/Users/radu.stroe/Documents/spotify_pipeline/spotify_dbt"  # ✅ Mount local dbt project into Kestra
+      - "/Users/radu.stroe/.dbt/profiles.yml"  # ✅ Ensure dbt can authenticate with BigQuery
+    commands:
+      - "dbt run --select dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings"
