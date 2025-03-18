@@ -328,153 +328,356 @@ Kestra requires credentials to interact with Kaggle and Google Cloud. Add them s
 1. In Kestra UI, go to **Flows → Create Flow**
 2. Name it **spotify_ingestion**
 3. Paste the following YAML code:
-```yaml
-id: spotify_ingestion  
-namespace: spotify_pipeline
-description: "Automated pipeline: Download Spotify dataset from Kaggle, upload to GCS, and load into BigQuery."
+    ```yaml
+    id: spotify_ingestion  
+    namespace: spotify_pipeline
+    description: "Automated pipeline: Download Spotify dataset from Kaggle, preprocess it, upload to GCS, and load into BigQuery."
 
-tasks:
-  - id: download_spotify_dataset
-    type: "io.kestra.plugin.scripts.shell.Commands"
-    description: "Download the latest Spotify dataset from Kaggle."
-    containerImage: "python:3.9"
-    outputFiles:
-      - "universal_top_spotify_songs.csv"
-    env:
-      KAGGLE_CONFIG_DIR: "/root/.kaggle"
-    commands:
-      - "pip install --no-cache-dir kaggle"
-      - "mkdir -p $KAGGLE_CONFIG_DIR"
-      - "echo '{{ kv('KAGGLE_JSON') | toJson }}' > $KAGGLE_CONFIG_DIR/kaggle.json"
-      - "chmod 600 $KAGGLE_CONFIG_DIR/kaggle.json"
-      - "kaggle datasets download -d asaniczka/top-spotify-songs-in-73-countries-daily-updated -p ./ --force"
-      - "unzip -o ./top-spotify-songs-in-73-countries-daily-updated.zip -d ./"
-      - "ls -lh ./"
-      - "[ -f ./universal_top_spotify_songs.csv ] && echo '✅ File exists!' || { echo '❌ ERROR: File not found!'; exit 1; }"
+    tasks:
+    - id: download_spotify_dataset
+        type: "io.kestra.plugin.scripts.shell.Commands"
+        description: "Download the latest Spotify dataset from Kaggle."
+        containerImage: "python:3.9"
+        outputFiles:
+        - "universal_top_spotify_songs.csv"
+        env:
+        KAGGLE_CONFIG_DIR: "/root/.kaggle"
+        beforeCommands:
+        - "pip install --no-cache-dir kaggle"
+        commands:
+        - "mkdir -p $KAGGLE_CONFIG_DIR"
+        - "echo '{{ kv('KAGGLE_JSON') | toJson }}' > $KAGGLE_CONFIG_DIR/kaggle.json"
+        - "chmod 600 $KAGGLE_CONFIG_DIR/kaggle.json"
+        - "kaggle datasets download -d asaniczka/top-spotify-songs-in-73-countries-daily-updated -p ./ --force"
+        - "unzip -o ./top-spotify-songs-in-73-countries-daily-updated.zip -d ./"
+        - "ls -lh ./"
+        - "[ -f ./universal_top_spotify_songs.csv ] && echo '✅ File exists!' || { echo '❌ ERROR: File not found!'; exit 1; }"
 
-  - id: upload_to_gcs
-    type: "io.kestra.plugin.scripts.shell.Commands"
-    description: "Upload the dataset to Google Cloud Storage."
-    containerImage: "google/cloud-sdk:latest"
-    env:
-      GOOGLE_APPLICATION_CREDENTIALS: "/tmp/gcp-key.json"
-    commands:
-      - "echo '{{ kv('GCP_SERVICE_ACCOUNT_BASE64') }}' | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS"
-      - "chmod 600 $GOOGLE_APPLICATION_CREDENTIALS"
-      - "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
-      - "gcloud auth list"
-      - "FILE_PATH={{ outputs.download_spotify_dataset.outputFiles['universal_top_spotify_songs.csv'] }}"
-      - "ls -lh $FILE_PATH || { echo '❌ ERROR: File not found!'; exit 1; }"
-      - "gsutil -o 'GSUtil:parallel_composite_upload_threshold=100M' -h 'Content-Type:text/csv' cp $FILE_PATH gs://spotify_radu_bucket/raw_data/universal_top_spotify_songs.csv"
-      - "echo '✅ Upload complete!'"
+    - id: preprocess_csv
+        type: "io.kestra.plugin.scripts.python.Commands"
+        description: "Preprocess CSV to ensure empty values are recognized as NULL by BigQuery."
+        containerImage: "python:3.9"
+        outputFiles:
+        - "cleaned_spotify_songs.csv.gz"
+        beforeCommands:
+        - "pip install pandas"
+        commands:
+        - |
+            python - <<EOF
+            import os
+            import pandas as pd
 
-  - id: load_to_bigquery
-    type: io.kestra.plugin.gcp.bigquery.LoadFromGcs
-    description: "Load only fresh data from GCS into BigQuery."
-    serviceAccount: "{{ kv('GCP_SERVICE_ACCOUNT') }}"
-    projectId: "spotify-sandbox-453505"
-    from:
-      - "gs://spotify_radu_bucket/raw_data/universal_top_spotify_songs.csv"
-    destinationTable: "spotify-sandbox-453505.spotify_radu_dataset.spotify_top_songs"
-    format: CSV
-    csvOptions:
-      skipLeadingRows: 1
-      allowJaggedRows: true
-      encoding: UTF-8
-      fieldDelimiter: ","
-    writeDisposition: WRITE_TRUNCATE
-    schema:
-      fields:
-        - name: spotify_id
-          type: STRING
-          mode: REQUIRED
-        - name: name
-          type: STRING
-          mode: REQUIRED
-        - name: artists
-          type: STRING
-          mode: REQUIRED
-        - name: daily_rank
-          type: INT64
-          mode: REQUIRED
-        - name: daily_movement
-          type: INT64
-          mode: NULLABLE
-        - name: weekly_movement
-          type: INT64
-          mode: NULLABLE
-        - name: country
-          type: STRING
-          mode: NULLABLE
-        - name: snapshot_date
-          type: DATE
-          mode: REQUIRED
-        - name: popularity
-          type: INT64
-          mode: NULLABLE
-        - name: is_explicit
-          type: BOOL
-          mode: NULLABLE
-        - name: duration_ms
-          type: INT64
-          mode: NULLABLE
-        - name: album_name
-          type: STRING
-          mode: NULLABLE
-        - name: album_release_date
-          type: DATE
-          mode: NULLABLE
-        - name: danceability
-          type: FLOAT64
-          mode: NULLABLE
-        - name: energy
-          type: FLOAT64
-          mode: NULLABLE
-        - name: key
-          type: INT64
-          mode: NULLABLE
-        - name: loudness
-          type: FLOAT64
-          mode: NULLABLE
-        - name: mode
-          type: INT64
-          mode: NULLABLE
-        - name: speechiness
-          type: FLOAT64
-          mode: NULLABLE
-        - name: acousticness
-          type: FLOAT64
-          mode: NULLABLE
-        - name: instrumentalness
-          type: FLOAT64
-          mode: NULLABLE
-        - name: liveness
-          type: FLOAT64
-          mode: NULLABLE
-        - name: valence
-          type: FLOAT64
-          mode: NULLABLE
-        - name: tempo
-          type: FLOAT64
-          mode: NULLABLE
-        - name: time_signature
-          type: INT64
-          mode: NULLABLE
-    autodetect: false
-```
+            csv_file = "{{ outputs.download_spotify_dataset.outputFiles['universal_top_spotify_songs.csv'] }}"
+            if not os.path.exists(csv_file):
+                raise FileNotFoundError(f"❌ ERROR: {csv_file} not found!")
+            
+            print(f"✅ Found CSV file: {csv_file}")
+
+            # Load CSV with proper encoding
+            df = pd.read_csv(csv_file, encoding='utf-8')
+
+            # Standardize empty values to NULL (handles spaces, tabs, and invisible characters)
+            df = df.map(lambda x: None if isinstance(x, str) and x.strip() == "" else x)
+
+            # Drop rows with missing required values
+            required_columns = ["name", "spotify_id"]
+            df.dropna(subset=required_columns, inplace=True)
+
+            # Save as compressed CSV
+            output_file = "cleaned_spotify_songs.csv.gz"
+            df.to_csv(output_file, index=False, encoding='utf-8-sig', compression='gzip')
+
+            print(f"✅ Processed CSV saved as: {output_file}")
+            EOF
+
+    - id: upload_to_gcs
+        type: "io.kestra.plugin.scripts.shell.Commands"
+        description: "Upload the cleaned dataset to Google Cloud Storage."
+        containerImage: "google/cloud-sdk:latest"
+        env:
+        GOOGLE_APPLICATION_CREDENTIALS: "/tmp/gcp-key.json"
+        commands:
+        - "echo '{{ kv('GCP_SERVICE_ACCOUNT_BASE64') }}' | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS"
+        - "chmod 600 $GOOGLE_APPLICATION_CREDENTIALS"
+        - "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
+        - "gcloud auth list"
+        - "FILE_PATH={{ outputs.preprocess_csv.outputFiles['cleaned_spotify_songs.csv.gz'] }}"
+        - "ls -lh $FILE_PATH || { echo '❌ ERROR: File not found!'; exit 1; }"
+        - "gsutil -o 'GSUtil:parallel_composite_upload_threshold=100M' -h 'Content-Type:text/csv' -h 'Content-Encoding:gzip' cp $FILE_PATH gs://spotify_radu_bucket/raw_data/cleaned_spotify_songs.csv.gz"
+        - "echo '✅ Upload complete!'"
+
+    - id: load_to_bigquery
+        type: io.kestra.plugin.gcp.bigquery.LoadFromGcs
+        description: "Load the cleaned dataset into BigQuery."
+        serviceAccount: "{{ kv('GCP_SERVICE_ACCOUNT') }}"
+        projectId: "spotify-sandbox-453505"
+        from:
+        - "gs://spotify_radu_bucket/raw_data/cleaned_spotify_songs.csv.gz"
+        destinationTable: "spotify-sandbox-453505.spotify_radu_dataset.spotify_top_songs"
+        format: CSV
+        csvOptions:
+        skipLeadingRows: 1
+        allowJaggedRows: true
+        encoding: UTF-8
+        fieldDelimiter: ","
+        quote: '"'
+        writeDisposition: WRITE_TRUNCATE
+        schema:
+        fields:
+            - name: spotify_id
+            type: STRING
+            mode: REQUIRED
+            - name: name
+            type: STRING
+            mode: REQUIRED
+            - name: artists
+            type: STRING
+            mode: REQUIRED
+            - name: daily_rank
+            type: INT64
+            mode: REQUIRED
+            - name: daily_movement
+            type: INT64
+            mode: NULLABLE
+            - name: weekly_movement
+            type: INT64
+            mode: NULLABLE
+            - name: country
+            type: STRING
+            mode: NULLABLE
+            - name: snapshot_date
+            type: DATE
+            mode: REQUIRED
+            - name: popularity
+            type: INT64
+            mode: NULLABLE
+            - name: is_explicit
+            type: BOOL
+            mode: NULLABLE
+            - name: duration_ms
+            type: INT64
+            mode: NULLABLE
+            - name: album_name
+            type: STRING
+            mode: NULLABLE
+            - name: album_release_date
+            type: DATE
+            mode: NULLABLE
+            - name: danceability
+            type: FLOAT64
+            mode: NULLABLE
+            - name: energy
+            type: FLOAT64
+            mode: NULLABLE
+            - name: key
+            type: INT64
+            mode: NULLABLE
+            - name: loudness
+            type: FLOAT64
+            mode: NULLABLE
+            - name: mode
+            type: INT64
+            mode: NULLABLE
+            - name: speechiness
+            type: FLOAT64
+            mode: NULLABLE
+            - name: acousticness
+            type: FLOAT64
+            mode: NULLABLE
+            - name: instrumentalness
+            type: FLOAT64
+            mode: NULLABLE
+            - name: liveness
+            type: FLOAT64
+            mode: NULLABLE
+            - name: valence
+            type: FLOAT64
+            mode: NULLABLE
+            - name: tempo
+            type: FLOAT64
+            mode: NULLABLE
+            - name: time_signature
+            type: INT64
+            mode: NULLABLE
+        autodetect: false
+
+    triggers:
+    - id: daily_schedule
+        type: io.kestra.plugin.core.trigger.Schedule
+        cron: "0 0 * * *"
+    ```
 4. Save and Deploy the flow.
 
 ---
 
-### **3️⃣ Schedule the Workflow (Daily Execution)**  
+### **3️⃣ Schedule the Workflow (Daily Execution)**
 To run this flow automatically every day, update `spotify_ingestion.yaml` by adding:
-```yaml  
+```yaml
 triggers:
   - id: daily_schedule
     type: io.kestra.core.models.triggers.types.Schedule
     cron: "0 0 * * *"  # Runs every day at 00:00 AM UTC
 ```
 - Uses **Cron syntax** (`0 0 * * *` → Every day at **0:00 AM UTC**).
+
+## 🚀 Automating Data Transformations with dbt
+Now that the data is successfully loaded into **BigQuery**, the next step is to **clean, structure, and optimize it for analysis using dbt**.
+
+We will use **dbt (Data Build Tool)** to transform raw Spotify data into a structured format for efficient querying and dashboard visualization.
+
+## ✅ Overview of the dbt Workflow
+Using **dbt**, we will:
+
+1. **Set up dbt and configure it to work with BigQuery**  
+2. **Create models to clean and transform raw Spotify data**  
+3. **Schedule dbt to run automatically every day at 01:00 UTC**  
+
+## 📌 Steps to Set Up dbt for Transformations
+
+### 1️⃣ Install & Configure dbt
+#### Step 1: Install dbt
+ - **For macOS (Homebrew):**
+  ```bash
+  brew install dbt-bigquery
+  ```
+ - **For Ubuntu/Linux (via pip):**
+  ```bash
+  pip install dbt-bigquery
+  ```
+
+Verify installation:
+```bash
+dbt --version
+```
+
+### 2️⃣ Initialize dbt Project
+Navigate to your project directory and create a new dbt project:
+```bash
+cd spotify_pipeline
+dbt init spotify_dbt
+```
+ - This creates a `spotify_dbt/` folder inside the project.
+
+### 3️⃣ Check dbt configuration for BigQuery
+1. Check `~/.dbt/profiles.yml` (create it if it doesn’t exist):
+   ```bash
+   cat ~/.dbt/profiles.yml
+   ```
+2. Example of configuration:
+    ```yaml
+    spotify_dbt:
+        outputs:
+            dev:
+                dataset: spotify_dataset
+                job_execution_timeout_seconds: 300
+                job_retries: 1
+                keyfile: /Users/User/Documents/pipeline/keys/creds.json
+                location: EU
+                method: service-account
+                priority: interactive
+                project: project-sandbox
+                threads: 4
+                type: bigquery
+        target: dev
+    ```
+
+3. Test the connection:
+Navigate to your dbt project:
+    ```bash
+    cd spotify_dbt
+    ```
+Verify dbt configuration:
+   ```bash
+   dbt debug
+   ```
+✅ If successful, dbt is now connected to BigQuery.
+
+### 4️⃣ Create dbt Models for Transformations
+
+Create a folder for **staging models**:
+```bash
+mkdir -p models/staging
+```
+Create a new SQL model:
+```bash
+touch models/staging/stg_spotify.sql
+```
+
+Edit `models/staging/stg_spotify.sql`:
+```sql
+WITH raw_spotify AS (
+    SELECT *
+    FROM `spotify-sandbox-453505.spotify_radu_dataset.spotify_top_songs`
+)
+
+SELECT 
+    spotify_id,
+    name,
+    artists,
+    country,
+    snapshot_date,
+    daily_rank,
+    daily_movement,
+    weekly_movement,
+    popularity,
+    is_explicit,
+    duration_ms,
+    album_name,
+    album_release_date,
+    danceability,
+    energy,
+    key,
+    loudness,
+    mode,
+    speechiness,
+    acousticness,
+    instrumentalness,
+    liveness,
+    valence,
+    tempo,
+    time_signature
+FROM raw_spotify;
+```
+ - This **cleans and structures** the raw data for further transformations.
+
+Run dbt to test it:
+```bash
+dbt run
+```
+
+### 5️⃣ Automate dbt Transformations
+Now, let’s **schedule dbt to run transformations daily at 01:00 UTC**.
+
+1. Create a new **Kestra flow** (`kestra/flows/dbt_transformations.yaml`) and add:
+
+```yaml
+id: dbt_transformations
+namespace: spotify_pipeline
+description: "Automated dbt transformations for Spotify data."
+
+triggers:
+  - id: daily_dbt_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 1 * * *"  # Runs every day at 01:00 UTC
+
+tasks:
+  - id: run_dbt
+    type: io.kestra.plugin.scripts.shell.Commands
+    description: "Run dbt models to transform data"
+    containerImage: "ghcr.io/dbt-labs/dbt-bigquery:latest"
+    commands:
+      - "dbt run --profiles-dir /root/.dbt"
+```
+
+2. Deploy the flow:
+   ```bash
+   kestra flow deploy kestra/flows/dbt_transformations.yaml
+   ```
+
+## ✅ Summary
+✅ Installed **dbt** and set up the **BigQuery connection**  
+✅ Created **dbt models** to clean and transform data  
+✅ Automated **dbt transformations to run daily at 01:00 UTC**
 
 ---
 
