@@ -14,7 +14,7 @@ tasks:
     url: "https://github.com/Radu-Stroe/spotify_pipeline"
     branch: main
     namespace: "{{ flow.namespace }}"
-    gitDirectory: "dbt"
+    gitDirectory: "spotify_dbt"
     dryRun: false
 
   # Run DBT transformations
