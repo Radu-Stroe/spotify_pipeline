@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: stg_spotify
+    description: "Staging model for Spotify song rankings, including country/global classification."
+    columns:
+      - name: stg_spotify
+        description: "Staging table for Spotify daily rankings"
+        tests:
+          - unique:
+              column_name: "(spotify_id, snapshot_date)"
+          - not_null
+      - name: name
+        description: "Title of the song."
+        tests:
+          - not_null
+      - name: artists
+        description: "Artists performing the song."
+        tests:
+          - not_null
+      - name: daily_rank
+        description: "Song's rank on the given snapshot date."
+        tests:
+          - not_null
+      - name: daily_movement
+        description: "Change in rank compared to the previous day."
+      - name: weekly_movement
+        description: "Change in rank compared to the previous week."
+      - name: country
+        description: "Country of the ranking; 'Global' if null."
+      - name: snapshot_date
+        description: "Date of the ranking snapshot."
+        tests:
+          - not_null
+      - name: popularity
+        description: "Popularity score of the song."
+      - name: is_explicit
+        description: "Indicates whether the song contains explicit lyrics."
+      - name: duration_ms
+        description: "Duration of the song in milliseconds."
+      - name: album_name
+        description: "Name of the album the song belongs to."
+      - name: album_release_date
+        description: "Release date of the album."
+      - name: danceability
+        description: "A measure of how suitable the song is for dancing."
+      - name: energy
+        description: "A measure of the intensity of the song."
+      - name: key
+        description: "The key of the song."
+      - name: loudness
+        description: "The overall loudness of the song in decibels."
+      - name: mode
+        description: "Indicates whether the song is in a major or minor key."
+      - name: speechiness
+        description: "A measure of the presence of spoken words in the song."
+      - name: acousticness
+        description: "A measure of the acoustic quality of the song."
+      - name: instrumentalness
+        description: "A measure of the likelihood that the song does not contain vocals."
+      - name: liveness
+        description: "A measure of the presence of a live audience in the recording."
+      - name: valence
+        description: "A measure of the musical positiveness conveyed by the song."
+      - name: tempo
+        description: "The tempo of the song in beats per minute."
+      - name: time_signature
+        description: "The estimated overall time signature of the song."
