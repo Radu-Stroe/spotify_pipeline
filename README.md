@@ -563,22 +563,22 @@ dbt init spotify_dbt
    ```bash
    cat ~/.dbt/profiles.yml
    ```
-2. Example of configuration:
+2. Profiles configuration:
     ```yaml
     spotify_dbt:
-        outputs:
-            dev:
-                dataset: spotify_dataset
-                job_execution_timeout_seconds: 300
-                job_retries: 1
-                keyfile: /Users/User/Documents/pipeline/keys/creds.json
-                location: EU
-                method: service-account
-                priority: interactive
-                project: project-sandbox
-                threads: 4
-                type: bigquery
-        target: dev
+      outputs:
+        dev:
+          dataset: spotify_radu_dataset
+          job_execution_timeout_seconds: 300
+          job_retries: 1
+          keyfile: /Users/radu.stroe/Documents/spotify_pipeline/keys/project.json
+          location: EU
+          method: service-account
+          priority: interactive
+          project: spotify-sandbox-453505
+          threads: 4
+          type: bigquery
+      target: dev
     ```
 
 3. Test the connection:
@@ -598,30 +598,193 @@ Create a folder for **staging models**:
 ```bash
 mkdir -p models/staging
 ```
-Create a new SQL model:
-```bash
-touch models/staging/stg_spotify.sql
-```
-
-Edit `models/staging/stg_spotify.sql`:
+Create a staging model:
 ```sql
-WITH raw_spotify AS (
-    SELECT *
+WITH ranked_spotify AS (
+    SELECT
+        spotify_id,
+        name,
+        artists,
+        COALESCE(country, 'GLOBAL') AS country,
+        snapshot_date,
+        daily_rank,
+        daily_movement,
+        weekly_movement,
+        popularity,
+        is_explicit,
+        duration_ms,
+        album_name,
+        album_release_date,
+        danceability,
+        energy,
+        key,
+        loudness,
+        mode,
+        speechiness,
+        acousticness,
+        instrumentalness,
+        liveness,
+        valence,
+        tempo,
+        time_signature,
+        ROW_NUMBER() OVER (
+            PARTITION BY spotify_id, snapshot_date
+            ORDER BY daily_rank ASC, country ASC
+        ) AS rank_order
     FROM `spotify-sandbox-453505.spotify_radu_dataset.spotify_top_songs`
 )
 
-SELECT 
+SELECT *
+FROM ranked_spotify
+WHERE rank_order = 1  
+```
+Create a schema for staging model and add tests: 
+```yaml
+version: 2
+
+models:
+  - name: stg_spotify
+    description: "Staging model for Spotify song rankings, including country/global classification."
+    columns:
+      - name: stg_spotify
+        description: "Staging table for Spotify daily rankings"
+        tests:
+          - unique:
+              column_name: "(spotify_id, snapshot_date)"
+          - not_null
+      - name: name
+        description: "Title of the song."
+        tests:
+          - not_null
+      - name: artists
+        description: "Artists performing the song."
+        tests:
+          - not_null
+      - name: daily_rank
+        description: "Song's rank on the given snapshot date."
+        tests:
+          - not_null
+      - name: daily_movement
+        description: "Change in rank compared to the previous day."
+      - name: weekly_movement
+        description: "Change in rank compared to the previous week."
+      - name: country
+        description: "Country of the ranking; 'Global' if null."
+      - name: snapshot_date
+        description: "Date of the ranking snapshot."
+        tests:
+          - not_null
+      - name: popularity
+        description: "Popularity score of the song."
+      - name: is_explicit
+        description: "Indicates whether the song contains explicit lyrics."
+      - name: duration_ms
+        description: "Duration of the song in milliseconds."
+      - name: album_name
+        description: "Name of the album the song belongs to."
+      - name: album_release_date
+        description: "Release date of the album."
+      - name: danceability
+        description: "A measure of how suitable the song is for dancing."
+      - name: energy
+        description: "A measure of the intensity of the song."
+      - name: key
+        description: "The key of the song."
+      - name: loudness
+        description: "The overall loudness of the song in decibels."
+      - name: mode
+        description: "Indicates whether the song is in a major or minor key."
+      - name: speechiness
+        description: "A measure of the presence of spoken words in the song."
+      - name: acousticness
+        description: "A measure of the acoustic quality of the song."
+      - name: instrumentalness
+        description: "A measure of the likelihood that the song does not contain vocals."
+      - name: liveness
+        description: "A measure of the presence of a live audience in the recording."
+      - name: valence
+        description: "A measure of the musical positiveness conveyed by the song."
+      - name: tempo
+        description: "The tempo of the song in beats per minute."
+      - name: time_signature
+        description: "The estimated overall time signature of the song."
+```
+
+Create a folder for **dim models**:
+```bash
+mkdir -p models/dim
+```
+Create a dim artists model:
+```sql
+{{ config(materialized='table') }}
+
+WITH artists AS (
+    SELECT DISTINCT
+        artists,
+        TO_HEX(MD5(artists)) AS artist_id
+    FROM {{ ref('stg_spotify') }}
+)
+
+SELECT * FROM artists
+```
+Create a dim countries model:
+```sql
+{{ config(materialized='table') }}
+
+WITH countries AS (
+    SELECT DISTINCT
+        COALESCE(country, 'Global') AS country_id
+    FROM {{ ref('stg_spotify') }}
+)
+
+SELECT * FROM countries
+```
+Create a dim dates model:
+```sql
+{{ config(materialized='table') }}
+
+WITH dates AS (
+    SELECT DISTINCT
+        snapshot_date AS date_id,
+        EXTRACT(YEAR FROM snapshot_date) AS year,
+        EXTRACT(MONTH FROM snapshot_date) AS month,
+        EXTRACT(DAY FROM snapshot_date) AS day,
+        FORMAT_DATE('%A', snapshot_date) AS day_of_week
+    FROM {{ ref('stg_spotify') }}
+)
+
+SELECT * FROM dates
+```
+Create a dim songs model:
+```sql
+{{ config(materialized='table') }}
+
+WITH ranked_songs AS (
+    SELECT
+        spotify_id,
+        name AS song_name,
+        album_name,
+        album_release_date,
+        danceability,
+        energy,
+        key,
+        loudness,
+        mode,
+        speechiness,
+        acousticness,
+        instrumentalness,
+        liveness,
+        valence,
+        tempo,
+        time_signature,
+        snapshot_date,
+        ROW_NUMBER() OVER (PARTITION BY spotify_id ORDER BY snapshot_date DESC) AS row_num 
+    FROM {{ ref('stg_spotify') }}
+)
+
+SELECT
     spotify_id,
-    name,
-    artists,
-    country,
-    snapshot_date,
-    daily_rank,
-    daily_movement,
-    weekly_movement,
-    popularity,
-    is_explicit,
-    duration_ms,
+    song_name,
     album_name,
     album_release_date,
     danceability,
@@ -636,9 +799,101 @@ SELECT
     valence,
     tempo,
     time_signature
-FROM raw_spotify;
+FROM ranked_songs
+WHERE row_num = 1  
 ```
- - This **cleans and structures** the raw data for further transformations.
+Create a schema for dim models and add tests: 
+```yaml
+version: 2
+
+models:
+  - name: dim_songs
+    description: "Contains unique songs with their metadata."
+    columns:
+      - name: spotify_id
+        description: "Unique identifier for the song."
+        tests:
+          - unique
+          - not_null
+  - name: dim_artists
+    description: "Contains unique artists with hashed IDs."
+    columns:
+      - name: artist_id
+        description: "Hashed unique identifier for the artist."
+        tests:
+          - unique
+          - not_null
+  - name: dim_countries
+    description: "Contains unique country names, with 'Global' as a fallback."
+    columns:
+      - name: country_id
+        description: "Unique identifier for the country."
+        tests:
+          - unique
+          - not_null
+  - name: dim_dates
+    description: "Contains date information for time-based queries."
+    columns:
+      - name: date_id
+        description: "The date identifier."
+        tests:
+          - unique
+          - not_null
+```
+
+Create a folder for **fact models**:
+```bash
+mkdir -p models/fact
+```
+Create a fact spotify rankings model:
+```sql
+{{ config(
+    materialized='incremental',
+    unique_key='spotify_id',
+    partition_by={"field": "date_id", "data_type": "DATE"},
+    cluster_by=["country_id"]
+) }}
+
+WITH rankings AS (
+    SELECT
+        s.spotify_id,
+        a.artist_id,
+        c.country_id,
+        d.date_id,
+        s.daily_rank,
+        s.daily_movement,
+        s.weekly_movement,
+        s.popularity,
+        s.is_explicit,
+        s.duration_ms
+    FROM {{ ref('stg_spotify') }} s
+    LEFT JOIN {{ ref('dim_artists') }} a ON s.artists = a.artists
+    LEFT JOIN {{ ref('dim_countries') }} c ON s.country = c.country_id
+    LEFT JOIN {{ ref('dim_dates') }} d ON s.snapshot_date = d.date_id
+    {% if is_incremental() %}
+    WHERE s.snapshot_date > (SELECT MAX(date_id) FROM {{ this }})
+    {% endif %}
+)
+
+SELECT * FROM rankings
+```
+Create a schema for fact models: 
+```yaml
+version: 2
+
+models:
+  - name: fact_spotify_rankings
+    description: "Fact table containing daily Spotify rankings."
+    columns:
+      - name: spotify_id
+        description: "Foreign key to dim_songs."
+      - name: artist_id
+        description: "Foreign key to dim_artists."
+      - name: country_id
+        description: "Foreign key to dim_countries."
+      - name: date_id
+        description: "Foreign key to dim_dates."
+```
 
 Run dbt to test it:
 ```bash
@@ -648,25 +903,94 @@ dbt run
 ### 5️⃣ Automate dbt Transformations
 Now, let’s **schedule dbt to run transformations daily at 01:00 UTC**.
 
-1. Create a new **Kestra flow** (`kestra/flows/dbt_transformations.yaml`) and add:
+1. Create a new **Kestra flow** (`kestra/flows/spotify_transformation.yaml`) and add:
 
 ```yaml
-id: dbt_transformations
+id: spotify_transformation
 namespace: spotify_pipeline
-description: "Automated dbt transformations for Spotify data."
+description: "Scheduled transformation for dims and fact tables"
 
 triggers:
-  - id: daily_dbt_schedule
+  - id: daily_schedule
     type: io.kestra.plugin.core.trigger.Schedule
-    cron: "0 1 * * *"  # Runs every day at 01:00 UTC
+    cron: "0 1 * * *"  
 
 tasks:
-  - id: run_dbt
-    type: io.kestra.plugin.scripts.shell.Commands
-    description: "Run dbt models to transform data"
-    containerImage: "ghcr.io/dbt-labs/dbt-bigquery:latest"
+  # Sync the latest DBT project from GitHub
+  - id: sync_dbt_project
+    type: io.kestra.plugin.git.SyncNamespaceFiles
+    url: "https://github.com/Radu-Stroe/spotify_pipeline"
+    branch: main
+    namespace: "{{ flow.namespace }}"
+    gitDirectory: "spotify_dbt"
+    dryRun: false
+
+  # Run DBT transformations
+  - id: run_dbt_transformations
+    type: io.kestra.plugin.dbt.cli.DbtCLI
+    containerImage: google/cloud-sdk:latest  
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+    namespaceFiles:
+      enabled: true
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: "/tmp/gcp-key.json"
+      GCP_PROJECT_ID: "spotify-sandbox-453505"  
     commands:
-      - "dbt run --profiles-dir /root/.dbt"
+      # Install required dependencies
+      - "apt-get update && apt-get install -y python3-venv python3-pip"
+
+      # Create and activate a virtual environment
+      - "python3 -m venv /tmp/dbt-venv"
+      - "export PATH=/tmp/dbt-venv/bin:$PATH"  
+
+      # Install DBT inside the virtual environment
+      - "/tmp/dbt-venv/bin/pip install --upgrade pip"  
+      - "/tmp/dbt-venv/bin/pip install --no-cache-dir dbt-core dbt-bigquery pandas"
+
+      # Verify DBT installation
+      - "/tmp/dbt-venv/bin/dbt --version || (echo 'DBT not installed!' && exit 1)" 
+
+       # Authenticate with Google Cloud
+      - "echo '{{ kv('GCP_SERVICE_ACCOUNT_BASE64') }}' | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS"
+      - "chmod 600 $GOOGLE_APPLICATION_CREDENTIALS"
+      - "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
+      - "gcloud config set project $GCP_PROJECT_ID"
+      - "gcloud auth list"
+
+      # Debug Google Cloud Authentication
+      - "gcloud config list --format=json"
+
+      # Ensure DBT Recognizes profiles.yml
+      - "echo '{{ kv('DBT_PROFILES_YML') }}' > /tmp/profiles.yml"
+      - "export DBT_PROFILES_DIR='/tmp'"
+      - "cat /tmp/profiles.yml"  # Debugging profiles.yml
+
+      # Ensure BigQuery Keyfile Exists
+      - "[ -f /tmp/gcp-key.json ] && echo 'Keyfile exists' || (echo 'Keyfile missing!' && exit 1)"
+
+      # **Test BigQuery Connection Before Running DBT**
+      - "bq --project_id=$GCP_PROJECT_ID query --use_legacy_sql=false 'SELECT 1'"
+
+      # Run DBT Commands
+      - "dbt deps"
+      - "dbt debug"
+      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings"
+
+    storeManifest:
+      key: manifest.json
+      namespace: "{{ flow.namespace }}"
+    profiles: |
+      default:
+        outputs:
+          dev:
+            type: bigquery
+            method: service-account
+            project: spotify-sandbox-453505 
+            dataset: spotify_radu_dataset
+            threads: 4
+            keyfile: /tmp/gcp-key.json 
+        target: dev
 ```
 
 2. Deploy the flow:
