@@ -19,7 +19,7 @@ WITH ranked_songs AS (
         tempo,
         time_signature,
         snapshot_date,
-        ROW_NUMBER() OVER (PARTITION BY spotify_id ORDER BY snapshot_date DESC) AS row_num  -- ✅ Keep latest snapshot
+        ROW_NUMBER() OVER (PARTITION BY spotify_id ORDER BY snapshot_date DESC) AS row_num 
     FROM {{ ref('stg_spotify') }}
 )
 
@@ -41,4 +41,4 @@ SELECT
     tempo,
     time_signature
 FROM ranked_songs
-WHERE row_num = 1  -- ✅ Only keep the latest entry per song
+WHERE row_num = 1  
