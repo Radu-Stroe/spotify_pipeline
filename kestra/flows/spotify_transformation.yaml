@@ -1,0 +1,85 @@
+id: spotify_transformation
+namespace: spotify_pipeline
+description: "Scheduled transformation for dims and fact tables"
+
+triggers:
+  - id: daily_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 1 * * *"  
+
+tasks:
+  # Sync the latest DBT project from GitHub
+  - id: sync_dbt_project
+    type: io.kestra.plugin.git.SyncNamespaceFiles
+    url: "https://github.com/Radu-Stroe/spotify_pipeline"
+    branch: main
+    namespace: "{{ flow.namespace }}"
+    gitDirectory: "spotify_dbt"
+    dryRun: false
+
+  # Run DBT transformations
+  - id: run_dbt_transformations
+    type: io.kestra.plugin.dbt.cli.DbtCLI
+    containerImage: google/cloud-sdk:latest  
+    taskRunner:
+      type: io.kestra.plugin.scripts.runner.docker.Docker
+    namespaceFiles:
+      enabled: true
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: "/tmp/gcp-key.json"
+      GCP_PROJECT_ID: "spotify-sandbox-453505"  
+    commands:
+      # Install required dependencies
+      - "apt-get update && apt-get install -y python3-venv python3-pip"
+
+      # Create and activate a virtual environment
+      - "python3 -m venv /tmp/dbt-venv"
+      - "export PATH=/tmp/dbt-venv/bin:$PATH"  
+
+      # Install DBT inside the virtual environment
+      - "/tmp/dbt-venv/bin/pip install --upgrade pip"  
+      - "/tmp/dbt-venv/bin/pip install --no-cache-dir dbt-core dbt-bigquery pandas"
+
+      # Verify DBT installation
+      - "/tmp/dbt-venv/bin/dbt --version || (echo 'DBT not installed!' && exit 1)" 
+
+       # Authenticate with Google Cloud
+      - "echo '{{ kv('GCP_SERVICE_ACCOUNT_BASE64') }}' | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS"
+      - "chmod 600 $GOOGLE_APPLICATION_CREDENTIALS"
+      - "gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS"
+      - "gcloud config set project $GCP_PROJECT_ID"
+      - "gcloud auth list"
+
+      # Debug Google Cloud Authentication
+      - "gcloud config list --format=json"
+
+      # Ensure DBT Recognizes profiles.yml
+      - "echo '{{ kv('DBT_PROFILES_YML') }}' > /tmp/profiles.yml"
+      - "export DBT_PROFILES_DIR='/tmp'"
+      - "cat /tmp/profiles.yml"  # Debugging profiles.yml
+
+      # Ensure BigQuery Keyfile Exists
+      - "[ -f /tmp/gcp-key.json ] && echo 'Keyfile exists' || (echo 'Keyfile missing!' && exit 1)"
+
+      # **Test BigQuery Connection Before Running DBT**
+      - "bq --project_id=$GCP_PROJECT_ID query --use_legacy_sql=false 'SELECT 1'"
+
+      # Run DBT Commands
+      - "dbt deps"
+      - "dbt debug"
+      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings"
+
+    storeManifest:
+      key: manifest.json
+      namespace: "{{ flow.namespace }}"
+    profiles: |
+      default:
+        outputs:
+          dev:
+            type: bigquery
+            method: service-account
+            project: spotify-sandbox-453505 
+            dataset: spotify_radu_dataset
+            threads: 4
+            keyfile: /tmp/gcp-key.json 
+        target: dev
