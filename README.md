@@ -315,7 +315,7 @@ Once Kestra is running at **http://localhost:8080/**, follow these steps to set 
 Kestra requires credentials to interact with Kaggle and Google Cloud. Add them securely to the **Kestra KV Store**:
 
 1. Navigate to **http://localhost:8080/**
-2. Go to **Settings → Secret Store**
+2. Go to **Namespaces → spotify_pipeline → KV Store**
 3. Add the following entries:
    - **Key:** `KAGGLE_JSON` → Paste the content of your `kaggle.json` file.
    - **Key:** `GCP_SERVICE_ACCOUNT_BASE64` → Convert your GCP service account JSON file to Base64 and paste it:
@@ -594,11 +594,13 @@ Verify dbt configuration:
 
 ### 4️⃣ Create dbt Models for Transformations
 
-Create a folder for **staging models**:
+1. Create a folder for **staging models**:
+
 ```bash
 mkdir -p models/staging
 ```
-Create a staging model:
+
+2. Create a staging model:
 ```sql
 WITH ranked_spotify AS (
     SELECT
@@ -710,11 +712,14 @@ models:
         description: "The estimated overall time signature of the song."
 ```
 
-Create a folder for **dim models**:
+3. Create a folder for **dim models**:
+
 ```bash
 mkdir -p models/dim
 ```
-Create a dim artists model:
+
+4. Create a dim artists model:
+
 ```sql
 {{ config(materialized='table') }}
 
@@ -727,7 +732,9 @@ WITH artists AS (
 
 SELECT * FROM artists
 ```
-Create a dim countries model:
+
+5. Create a dim countries model:
+
 ```sql
 {{ config(materialized='table') }}
 
@@ -739,7 +746,9 @@ WITH countries AS (
 
 SELECT * FROM countries
 ```
-Create a dim dates model:
+
+6. Create a dim dates model:
+
 ```sql
 {{ config(materialized='table') }}
 
@@ -755,7 +764,9 @@ WITH dates AS (
 
 SELECT * FROM dates
 ```
-Create a dim songs model:
+
+7. Create a dim songs model:
+
 ```sql
 {{ config(materialized='table') }}
 
@@ -802,7 +813,9 @@ SELECT
 FROM ranked_songs
 WHERE row_num = 1  
 ```
-Create a schema for dim models and add tests: 
+
+8. Create a schema for dim models and add tests: 
+
 ```yaml
 version: 2
 
@@ -841,11 +854,14 @@ models:
           - not_null
 ```
 
-Create a folder for **fact models**:
+9. Create a folder for **fact models**:
+
 ```bash
 mkdir -p models/fact
 ```
-Create a fact spotify rankings model:
+
+10. Create a fact spotify rankings model:
+
 ```sql
 {{ config(
     materialized='incremental',
@@ -877,7 +893,9 @@ WITH rankings AS (
 
 SELECT * FROM rankings
 ```
-Create a schema for fact models: 
+
+11. Create a schema for fact models: 
+
 ```yaml
 version: 2
 
@@ -895,21 +913,80 @@ models:
         description: "Foreign key to dim_dates."
 ```
 
-Run dbt to test it:
+### 5️⃣ Testing and Running dbt Models
+
+1. **Test dbt Setup**
+
+Before running dbt transformations, test the setup with:
+```bash
+dbt debug
+```
+•	✅ If successful, you’ll see confirmation messages indicating that profiles.yml and dbt_project.yml are valid, and the BigQuery connection is working.
+•	❌ If errors appear, resolve issues related to missing dependencies, misconfigured authentication, or incorrect database connection settings.
+
+2. **Run dbt Models**
+
+Execute dbt models step-by-step to validate their correctness:
+
+**Run Only Staging Models**
+```bash
+dbt run --select stg_spotify
+```
+•	Ensure that stg_spotify loads properly before proceeding to dependent models.
+
+**Run All Dimensional Tables**
+
+```bash
+dbt run --select dim_songs dim_artists dim_dates dim_countries
+```
+•	This will populate dimension tables with unique songs, artists, dates, and countries.
+
+**Run Fact Table**
+
+```bash
+dbt run --select fact_spotify_rankings
+```
+
+•	This loads ranking data into the fact table, integrating information from staging and dimension tables.
+
+**Run All Models at Once**
+
 ```bash
 dbt run
 ```
+•	This executes all models in the correct dependency order.
+
+3. **Validate dbt Models**
+
+After running the models, verify data integrity by running tests:
+
+```bash
+dbt test
+```
+•	This checks for null values, uniqueness constraints, and referential integrity in the data warehouse.
+
+
 
 ### 5️⃣ Automate dbt Transformations
-Now, let’s **schedule dbt to run transformations daily at 01:00 UTC**.
 
-1. Create a new **Kestra flow** (`kestra/flows/spotify_transformation.yaml`) and add:
+#### **Step 1: Add dbt profiles to KV Store**  
+**Kestra KV Store**:
+1. Navigate to **http://localhost:8080/**
+2. Go to **Namespaces → spotify_pipeline → KV Store**
+3. Add the following entry:
+  **Key:** `DBT_PROFILES_YML` → Paste the content of your `~/.dbt/profiles.yml` file.
 
+#### **Step 2: Create a New Flow in Kestra**  
+
+1. In Kestra UI, go to **Flows → Create Flow**
+2. Name it **spotify_transformation**
+3. Paste the following YAML code:
 ```yaml
 id: spotify_transformation
 namespace: spotify_pipeline
 description: "Scheduled transformation for dims and fact tables"
 
+# Schedule dbt to run transformations daily at 01:00 UTC
 triggers:
   - id: daily_schedule
     type: io.kestra.plugin.core.trigger.Schedule
@@ -992,25 +1069,10 @@ tasks:
             keyfile: /tmp/gcp-key.json 
         target: dev
 ```
-
-2. Deploy the flow:
-   ```bash
-   kestra flow deploy kestra/flows/dbt_transformations.yaml
-   ```
-
-## ✅ Summary
-✅ Installed **dbt** and set up the **BigQuery connection**  
-✅ Created **dbt models** to clean and transform data  
-✅ Automated **dbt transformations to run daily at 01:00 UTC**
+4. Save and Deploy the flow.
 
 ---
 
-## **📌 Next Steps**  
-- Implement **more advanced transformations** (e.g., clustering by genre or sentiment analysis).  
-- Add **forecasting models** to predict future ranking trends.  
-- Enhance **data enrichment** (e.g., incorporating social media trends or streaming statistics).
-
----
 
 ## **📜 License**  
 This project is for educational purposes and follows Kaggle's data usage policies.
