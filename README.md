@@ -913,6 +913,75 @@ models:
         description: "Foreign key to dim_dates."
 ```
 
+12. Create a folder for **report models**:
+
+```bash
+mkdir -p models/report
+```
+
+13. Create a fact spotify rankings report model:
+
+```sql
+{{ config(materialized='table') }}
+
+WITH base AS (
+    SELECT
+        f.spotify_id,
+        s.song_name,
+        f.country_id,
+        f.date_id,
+        f.daily_rank,
+        f.popularity
+    FROM {{ ref('fact_spotify_rankings') }} f
+    LEFT JOIN {{ ref('dim_songs') }} s ON f.spotify_id = s.spotify_id
+)
+
+SELECT * FROM base
+```
+
+14. Create a schema for report models: 
+
+```yaml
+version: 2
+
+models:
+  - name: fact_spotify_rankings_report
+    description: >
+      Final reporting model used in Looker Studio to analyze global vs. local song popularity and track ranking trends over time.
+      Combines fact_spotify_rankings and dim_songs.
+
+    columns:
+      - name: spotify_id
+        description: "Unique identifier of the song from Spotify."
+        tests:
+          - not_null
+
+      - name: song_name
+        description: "Name of the song as listed in dim_songs."
+        tests:
+          - not_null
+
+      - name: country_id
+        description: "ISO country code (or 'Global' if it's the global Top 50 chart)."
+        tests:
+          - not_null
+
+      - name: date_id
+        description: "The date the ranking was captured."
+        tests:
+          - not_null
+
+      - name: daily_rank
+        description: "Position of the song in the Top 50 on that day."
+        tests:
+          - not_null
+
+      - name: popularity
+        description: "Popularity score assigned by Spotify."
+        tests: []
+```
+
+
 ### 5️⃣ Testing and Running dbt Models
 
 1. **Test dbt Setup**
@@ -1052,7 +1121,7 @@ tasks:
       # Run DBT Commands
       - "dbt deps"
       - "dbt debug"
-      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings"
+      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings fact_spotify_rankings_report"
 
     storeManifest:
       key: manifest.json
