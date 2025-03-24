@@ -1121,7 +1121,7 @@ tasks:
       # Run DBT Commands
       - "dbt deps"
       - "dbt debug"
-      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings fact_spotify_rankings_report"
+      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings fact_spotify_rankings_report report_song_distribution"
 
     storeManifest:
       key: manifest.json
