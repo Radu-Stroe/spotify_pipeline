@@ -3,7 +3,7 @@ WITH ranked_spotify AS (
         spotify_id,
         name,
         artists,
-        COALESCE(country, 'GLOBAL') AS country,
+        COALESCE(country, 'Global') AS country,
         snapshot_date,
         daily_rank,
         daily_movement,

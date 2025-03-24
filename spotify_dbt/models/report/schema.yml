@@ -12,11 +12,6 @@ models:
         tests:
           - not_null
 
-      - name: song_name
-        description: "Name of the song as listed in dim_songs."
-        tests:
-          - not_null
-
       - name: country_id
         description: "ISO country code (or 'Global' if it's the global Top 50 chart)."
         tests:
@@ -26,12 +21,3 @@ models:
         description: "The date the ranking was captured."
         tests:
           - not_null
-
-      - name: daily_rank
-        description: "Position of the song in the Top 50 on that day."
-        tests:
-          - not_null
-
-      - name: popularity
-        description: "Popularity score assigned by Spotify."
-        tests: []
