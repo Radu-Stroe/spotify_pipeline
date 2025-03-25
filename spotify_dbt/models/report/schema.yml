@@ -1,23 +1,76 @@
 version: 2
 
 models:
-  - name: fact_spotify_rankings_report
+  - name: spotify_songs_analysis
     description: >
-      Final reporting model used in Looker Studio to analyze global vs. local song popularity and track ranking trends over time.
-      Combines fact_spotify_rankings and dim_songs.
+      Enriched Spotify rankings data combining song, artist, and date dimensions.
+      This model classifies songs as 'Global Only', 'Local Only', or 'Global & Local',
+      and supports analysis of song popularity and ranking trends across regions and time.
 
     columns:
       - name: spotify_id
-        description: "Unique identifier of the song from Spotify."
+        description: "Unique identifier for the song."
         tests:
           - not_null
 
+      - name: song_name
+        description: "Name of the song."
+        tests:
+          - not_null
+
+      - name: album_name
+        description: "Album name the song belongs to."
+
+      - name: album_release_date
+        description: "Release date of the album."
+
+      - name: artist_id
+        description: "Identifier for the artist."
+
+      - name: artist_name
+        description: "Name(s) of the artist(s)."
+
       - name: country_id
-        description: "ISO country code (or 'Global' if it's the global Top 50 chart)."
+        description: "ISO code for the country chart (e.g., 'RO', 'US', 'Global')."
         tests:
           - not_null
 
       - name: date_id
-        description: "The date the ranking was captured."
+        description: "Date of the ranking record."
         tests:
           - not_null
+
+      - name: year
+        description: "Year from date dimension."
+
+      - name: month
+        description: "Month from date dimension."
+
+      - name: day
+        description: "Day of the month from date dimension."
+
+      - name: day_of_week
+        description: "Day of the week (e.g., 'Monday')."
+
+      - name: daily_rank
+        description: "Daily rank of the song in the Top 50 chart."
+
+      - name: popularity
+        description: "Popularity score from Spotify (0–100)."
+
+      - name: is_explicit
+        description: "Boolean indicating if the song has explicit content."
+
+      - name: duration_ms
+        description: "Length of the song in milliseconds."
+
+      - name: global_local_class
+        description: >
+          Classification of the song's regional performance:
+          - 'Global Only' if it only appears in the global chart
+          - 'Local Only' if it only appears in local charts
+          - 'Global & Local' if it appears in both
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Global Only', 'Local Only', 'Global & Local', 'Unclassified']

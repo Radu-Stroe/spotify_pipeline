@@ -8,7 +8,6 @@ This project builds an **end-to-end data pipeline** to analyze and visualize how
 ### **Key Insights Provided by This Project:**
 ✅ **Which songs are globally recognized vs. locally popular?**  
 ✅ **How do song rankings change over time across different regions?**  
-✅ **What trends emerge in different countries' music preferences?**  
 
 To achieve this, we implement a **batch data pipeline** that processes and visualizes data using modern cloud technologies.
 
@@ -64,12 +63,11 @@ This dataset allows us to compare **global vs. local song rankings** over time a
 The final dashboard (built in **Looker Studio**) contains **two key visualizations**:
 
 1️⃣ **Categorical Graph:** **Distribution of Songs in Global vs. Local Charts**  
-   - Compares the number of songs that appear in both **global** and **country-specific** Top 50 lists.  
+   - Compares the number of songs that appear in both **global** and **country-specific** 
    - Helps identify how many songs are **international hits** vs. **regionally popular**.  
 
-2️⃣ **Time-Series Graph:** **Trend of a Song’s Rank in Global vs. Local Charts**  
-   - Tracks how a song’s position changes over time in both **global rankings** and **a specific country**.  
-   - Shows whether songs **gain international traction** or remain local favorites.  
+2️⃣ **Time-Series Graph:** **Top 50 Chart Coverage Over Time: Global vs. Local**  
+   - The unique songs appearing daily in the Top 50 chart for Global and a selected local country  
 
 ---
 
@@ -919,24 +917,79 @@ models:
 mkdir -p models/report
 ```
 
-13. Create a fact spotify rankings report model:
+13. Create a spotify songs analysis model:
 
 ```sql
 {{ config(materialized='table') }}
 
-WITH base AS (
+WITH enriched AS (
     SELECT
         f.spotify_id,
         s.song_name,
+        s.album_name,
+        s.album_release_date,
+
+        f.artist_id,
+        a.artists AS artist_name,
+
         f.country_id,
         f.date_id,
+        d.year,
+        d.month,
+        d.day,
+        d.day_of_week,
+
         f.daily_rank,
-        f.popularity
+        f.popularity,
+        f.is_explicit,
+        f.duration_ms
     FROM {{ ref('fact_spotify_rankings') }} f
     LEFT JOIN {{ ref('dim_songs') }} s ON f.spotify_id = s.spotify_id
+    LEFT JOIN {{ ref('dim_artists') }} a ON f.artist_id = a.artist_id
+    LEFT JOIN {{ ref('dim_dates') }} d ON f.date_id = d.date_id
+),
+
+song_presence_flags AS (
+    SELECT
+        spotify_id,
+        MAX(CASE WHEN country_id = 'Global' THEN 1 ELSE 0 END) AS is_global,
+        MAX(CASE WHEN country_id != 'Global' THEN 1 ELSE 0 END) AS is_local
+    FROM enriched
+    GROUP BY spotify_id
+),
+
+classification AS (
+    SELECT
+        spotify_id,
+        CASE
+            WHEN is_global = 1 AND is_local = 1 THEN 'Global & Local'
+            WHEN is_global = 1 AND is_local = 0 THEN 'Global Only'
+            WHEN is_global = 0 AND is_local = 1 THEN 'Local Only'
+            ELSE 'Unclassified'
+        END AS global_local_class
+    FROM song_presence_flags
 )
 
-SELECT * FROM base
+SELECT
+    e.spotify_id,
+    e.song_name,
+    e.album_name,
+    e.album_release_date,
+    e.artist_id,
+    e.artist_name,
+    e.country_id,
+    e.date_id,
+    e.year,
+    e.month,
+    e.day,
+    e.day_of_week,
+    e.daily_rank,
+    e.popularity,
+    e.is_explicit,
+    e.duration_ms,
+    c.global_local_class
+FROM enriched e
+LEFT JOIN classification c ON e.spotify_id = c.spotify_id
 ```
 
 14. Create a schema for report models: 
@@ -945,40 +998,79 @@ SELECT * FROM base
 version: 2
 
 models:
-  - name: fact_spotify_rankings_report
+  - name: spotify_songs_analysis
     description: >
-      Final reporting model used in Looker Studio to analyze global vs. local song popularity and track ranking trends over time.
-      Combines fact_spotify_rankings and dim_songs.
+      Enriched Spotify rankings data combining song, artist, and date dimensions.
+      This model classifies songs as 'Global Only', 'Local Only', or 'Global & Local',
+      and supports analysis of song popularity and ranking trends across regions and time.
 
     columns:
       - name: spotify_id
-        description: "Unique identifier of the song from Spotify."
+        description: "Unique identifier for the song."
         tests:
           - not_null
 
       - name: song_name
-        description: "Name of the song as listed in dim_songs."
+        description: "Name of the song."
         tests:
           - not_null
 
+      - name: album_name
+        description: "Album name the song belongs to."
+
+      - name: album_release_date
+        description: "Release date of the album."
+
+      - name: artist_id
+        description: "Identifier for the artist."
+
+      - name: artist_name
+        description: "Name(s) of the artist(s)."
+
       - name: country_id
-        description: "ISO country code (or 'Global' if it's the global Top 50 chart)."
+        description: "ISO code for the country chart (e.g., 'RO', 'US', 'Global')."
         tests:
           - not_null
 
       - name: date_id
-        description: "The date the ranking was captured."
+        description: "Date of the ranking record."
         tests:
           - not_null
+
+      - name: year
+        description: "Year from date dimension."
+
+      - name: month
+        description: "Month from date dimension."
+
+      - name: day
+        description: "Day of the month from date dimension."
+
+      - name: day_of_week
+        description: "Day of the week (e.g., 'Monday')."
 
       - name: daily_rank
-        description: "Position of the song in the Top 50 on that day."
-        tests:
-          - not_null
+        description: "Daily rank of the song in the Top 50 chart."
 
       - name: popularity
-        description: "Popularity score assigned by Spotify."
-        tests: []
+        description: "Popularity score from Spotify (0–100)."
+
+      - name: is_explicit
+        description: "Boolean indicating if the song has explicit content."
+
+      - name: duration_ms
+        description: "Length of the song in milliseconds."
+
+      - name: global_local_class
+        description: >
+          Classification of the song's regional performance:
+          - 'Global Only' if it only appears in the global chart
+          - 'Local Only' if it only appears in local charts
+          - 'Global & Local' if it appears in both
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Global Only', 'Local Only', 'Global & Local', 'Unclassified']
 ```
 
 
@@ -1121,7 +1213,7 @@ tasks:
       # Run DBT Commands
       - "dbt deps"
       - "dbt debug"
-      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings fact_spotify_rankings_report report_song_distribution"
+      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings fact_spotify_rankings_report"
 
     storeManifest:
       key: manifest.json
@@ -1140,8 +1232,78 @@ tasks:
 ```
 4. Save and Deploy the flow.
 
+
 ---
 
+## 📈 Looker Studio Dashboard Setup
+
+The dashboard created with **Looker Studio** helps visualize the insights generated from transformed Spotify ranking data.
+
+### 🔍 Key Visualizations
+
+---
+
+### 1️⃣ Distribution of Songs in Global vs. Local Charts
+
+**📊 Chart Type:** Bar Chart  
+**🎯 Goal:** Compare the number of unique songs appearing in the **Global Top 50** vs. **country-specific Top 50** charts.
+
+**📌 Steps to Create:**
+ - **Dimension:** `country_id`
+ - **Metric:** `spotify_id` → use `Count Distinct`
+ - (Optional) Add a filter to compare selected countries
+ - Use grouped bars to visualize Global vs. Local distribution
+
+**✅ Insight:**  
+Shows the overlap and differences between global and local music trends—how many tracks are **international hits** vs. **regionally popular**.
+
+---
+
+### 2️⃣ Top 50 Chart Coverage Over Time: Global vs. Local
+
+**📊 Chart Type:** Time Series  
+**🎯 Goal:** Track the number of **unique songs** appearing daily in the Top 50 for both **Global** and a selected **local country**.
+
+**📌 Steps to Create:**
+ - **Dimension:** `date_id`
+ - **Metric:** `spotify_id` → use `Count Distinct`
+ - **Breakdown Dimension:** `country_id` (optional filter: Global vs. e.g., France, Brazil)
+
+**✅ Insight:**  
+Reveals how music diversity evolves daily in each chart, showing **market volatility**, **playlist freshness**, and **regional consistency**.
+
+---
+
+### ⚙️ How to Build This Dashboard
+
+#### 1. Open Looker Studio  
+ - Visit [https://lookerstudio.google.com/](https://lookerstudio.google.com/)
+ - Sign in and **Create a Report**
+
+#### 2. Connect to BigQuery
+ - **Data Source:** BigQuery →  
+   `spotify-sandbox-453505.spotify_radu_dataset.fact_spotify_rankings_report`
+
+#### 3. Add & Configure Charts
+ - Use the two chart setups listed above
+ - Add **Dropdown Controls** for `country_id` and **Date Range Filters**
+ - Optionally, add **Data Labels** and custom **Color Themes**
+
+#### 4. Share & Publish
+ - Click **Share** → Choose access settings  
+ - Make it **public** or limited to collaborators
+
+---
+
+### 📌 Dataset Used in Dashboard
+`fact_spotify_rankings_report` – built from dbt transformations, includes:
+ - `spotify_id`
+ - `song_name`
+ - `country_id`
+ - `date_id`
+
+
+---
 
 ## **📜 License**  
 This project is for educational purposes and follows Kaggle's data usage policies.
