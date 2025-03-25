@@ -1110,6 +1110,14 @@ dbt run --select fact_spotify_rankings
 
 •	This loads ranking data into the fact table, integrating information from staging and dimension tables.
 
+**Run Report Table**
+
+```bash
+dbt run --select spotify_songs_analysis
+```
+
+•	Populate table from fact and dims, used for reporting and dashboarding
+
 **Run All Models at Once**
 
 ```bash
@@ -1213,7 +1221,7 @@ tasks:
       # Run DBT Commands
       - "dbt deps"
       - "dbt debug"
-      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings fact_spotify_rankings_report"
+      - "dbt run --select stg_spotify dim_songs dim_artists dim_dates dim_countries fact_spotify_rankings spotify_songs_analysis"
 
     storeManifest:
       key: manifest.json
@@ -1232,75 +1240,105 @@ tasks:
 ```
 4. Save and Deploy the flow.
 
+---
+
+## 📊 Looker Studio: Connecting & Visualizing `spotify_songs_analysis`
+
+Let's connect newly created `spotify_songs_analysis` table with Looker, so you can build charts that directly support your project’s three key insights.
 
 ---
 
-## 📈 Looker Studio Dashboard Setup
+### ✅ Step 1: Connect BigQuery Table to Looker Studio
 
-The dashboard created with **Looker Studio** helps visualize the insights generated from transformed Spotify ranking data.
-
-### 🔍 Key Visualizations
-
----
-
-### 1️⃣ Distribution of Songs in Global vs. Local Charts
-
-**📊 Chart Type:** Bar Chart  
-**🎯 Goal:** Compare the number of unique songs appearing in the **Global Top 50** vs. **country-specific Top 50** charts.
-
-**📌 Steps to Create:**
- - **Dimension:** `country_id`
- - **Metric:** `spotify_id` → use `Count Distinct`
- - (Optional) Add a filter to compare selected countries
- - Use grouped bars to visualize Global vs. Local distribution
-
-**✅ Insight:**  
-Shows the overlap and differences between global and local music trends—how many tracks are **international hits** vs. **regionally popular**.
+1. Go to [Looker Studio](https://lookerstudio.google.com/)
+2. Click **Create → Report**
+3. In the data panel, click **Add data**
+4. Choose **BigQuery**
+5. Select:
+   - Project: `spotify-sandbox-453505`
+   - Dataset: `spotify_radu_dataset`
+   - Table: `spotify_songs_analysis`
+6. Click **Add → Add to Report**
 
 ---
 
-### 2️⃣ Top 50 Chart Coverage Over Time: Global vs. Local
-
-**📊 Chart Type:** Time Series  
-**🎯 Goal:** Track the number of **unique songs** appearing daily in the Top 50 for both **Global** and a selected **local country**.
-
-**📌 Steps to Create:**
- - **Dimension:** `date_id`
- - **Metric:** `spotify_id` → use `Count Distinct`
- - **Breakdown Dimension:** `country_id` (optional filter: Global vs. e.g., France, Brazil)
-
-**✅ Insight:**  
-Reveals how music diversity evolves daily in each chart, showing **market volatility**, **playlist freshness**, and **regional consistency**.
+### ✅ Step 2: Create Tiles for Each Insight
 
 ---
 
-### ⚙️ How to Build This Dashboard
+#### 📊 Tile 1: Global vs. Local Popularity Breakdown
 
-#### 1. Open Looker Studio  
- - Visit [https://lookerstudio.google.com/](https://lookerstudio.google.com/)
- - Sign in and **Create a Report**
+**Goal:**  
+Visualize how many songs are:
+- Global Only
+- Local Only
+- Global & Local
 
-#### 2. Connect to BigQuery
- - **Data Source:** BigQuery →  
-   `spotify-sandbox-453505.spotify_radu_dataset.fact_spotify_rankings_report`
-
-#### 3. Add & Configure Charts
- - Use the two chart setups listed above
- - Add **Dropdown Controls** for `country_id` and **Date Range Filters**
- - Optionally, add **Data Labels** and custom **Color Themes**
-
-#### 4. Share & Publish
- - Click **Share** → Choose access settings  
- - Make it **public** or limited to collaborators
+**How:**
+1. Chart Type: Pie Chart or Horizontal Bar
+2. Dimension: `global_local_class`
+3. Metric: `COUNT_DISTINCT(spotify_id)`
+4. Optional Controls:
+   - Add a Date Range control
+   - Add a `country_id` filter (for “Local Only” focus)
 
 ---
 
-### 📌 Dataset Used in Dashboard
-`fact_spotify_rankings_report` – built from dbt transformations, includes:
- - `spotify_id`
- - `song_name`
- - `country_id`
- - `date_id`
+#### 📈 Tile 2: Song Rank Over Time (Global vs. Country)
+
+**Goal:**  
+Show a song’s rank trend across different regions (Global vs. a selected country)
+
+**How:**
+1. Chart Type: Line Chart
+2. Dimension: `date_id`
+3. Breakdown Dimension: `country_id`
+4. Metric: `daily_rank`
+5. Controls:
+   - Dropdown filter for `song_name`
+   - Dropdown filter for `country_id` (select one + Global)
+   - Date range picker
+
+---
+
+#### 📋 Tile 3: Local-Only Songs Table (Region-Specific)
+
+**Goal:**  
+Highlight songs that only appear in local charts and not globally
+
+**How:**
+1. Chart Type: Table
+2. Dimension: `song_name`, `artist_name`, `country_id`
+3. Metric (optional): `popularity`
+4. Add Filter:
+   - `global_local_class = 'Local Only'`
+   - Optional: Filter by `country_id` and `date_id`
+
+---
+
+### ✅ Step 3: Add Controls
+
+- 🔹 **Date Range Picker** — filters by `date_id`
+- 🔹 **Dropdown for `country_id`** — to compare Global with one local
+- 🔹 **Dropdown for `song_name`** — for rank trend analysis
+
+---
+
+### ✅ Step 4: Style Your Dashboard
+
+- Use contrasting colors for Global vs Local (e.g., Teal vs Pink)
+- Add clear chart titles
+- Add conditional formatting in tables if desired
+- Set default filters (e.g., only show “Last quarter”)
+
+---
+
+### ✅ Step 5: Share
+
+1. Click **Share**
+2. Set access to **“Anyone with the link”** or restricted access
+3. View [Dashboard](https://lookerstudio.google.com/s/gmdYsehri84/)
+![Dashboard Preview](dashboard_screenshot.png)
 
 
 ---
