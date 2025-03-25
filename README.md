@@ -1338,6 +1338,7 @@ Highlight songs that only appear in local charts and not globally
 1. Click **Share**
 2. Set access to **“Anyone with the link”** or restricted access
 3. View [Dashboard](https://lookerstudio.google.com/s/gmdYsehri84/)
+
 ![Dashboard Preview](dashboard_screenshot.png)
 
 
