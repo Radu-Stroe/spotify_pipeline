@@ -2,14 +2,16 @@
 
 ## **📌 Project Overview**  
 Music streaming platforms like **Spotify** provide rankings for the most popular songs in various countries. Some songs dominate the **global charts**, while others remain **regionally popular**. However, there is no straightforward way to compare a song’s **international success** with its **local popularity** over time.  
-
-This project builds an **end-to-end data pipeline** to analyze and visualize how **song rankings differ between global and country-specific charts**.  
+  
+This project builds an **end-to-end batch data pipeline** to analyze and visualize how **song rankings differ between global and country-specific charts**
+  
 
 ### **Key Insights Provided by This Project:**
 ✅ **Which songs are globally recognized vs. locally popular?**  
 ✅ **How do song rankings change over time across different regions?**  
-
-To achieve this, we implement a **batch data pipeline** that processes and visualizes data using modern cloud technologies.
+✅ **Which songs are exclusive to local charts and which succeed globally?**
+  
+The final dashboard visualizes trends, comparisons, and song-level insights by combining transformed data from multiple sources into a single reporting table.
 
 ---
 
@@ -60,14 +62,19 @@ This dataset allows us to compare **global vs. local song rankings** over time a
 
 ## **📊 Dashboard Overview**  
 
-The final dashboard (built in **Looker Studio**) contains **two key visualizations**:
+The final dashboard (built in **Looker Studio**) contains **three key visualizations**, designed to answer the central questions of this project:
 
 1️⃣ **Categorical Graph:** **Distribution of Songs in Global vs. Local Charts**  
-   - Compares the number of songs that appear in both **global** and **country-specific** 
-   - Helps identify how many songs are **international hits** vs. **regionally popular**.  
+   - Compares the number of songs that appear **only in global**, **only in local**, or **in both** types of charts.  
+   - Helps identify which songs are **international hits** vs. **regionally popular**.  
 
 2️⃣ **Time-Series Graph:** **Top 50 Chart Coverage Over Time: Global vs. Local**  
-   - The unique songs appearing daily in the Top 50 chart for Global and a selected local country  
+   - Tracks the number of unique songs appearing daily in the Top 50 charts across Global and a selected country.  
+   - Useful for spotting trends in song rotation and chart volatility.  
+ 
+3️⃣ **Exploratory Table:** **Local-Only Songs Overview**  
+   - Displays songs that only appear in local charts, filtered by region and timeframe.  
+   - Helps highlight regional preferences and emerging local artists.
 
 ---
 
@@ -111,7 +118,125 @@ Before proceeding, ensure the following steps are completed:
 
 3. **Create and Configure Terraform Files**
     - main.tf → Defines infrastructure resources (e.g., GCS bucket, BigQuery dataset).
+```
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "6.16.0"
+    }
+  }
+}
+
+provider "google" {
+  credentials = file(var.credentials_file)
+  project     = var.project_id
+  region      = var.region
+}
+
+resource "google_storage_bucket" "spotify_radu_bucket" {
+  name          = var.gcs_bucket_name
+  location      = var.region
+  force_destroy = true
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 60 # Delete files older than 60 days
+    }
+  }
+}
+
+resource "google_bigquery_dataset" "spotify_radu_dataset" {
+  dataset_id  = var.bq_dataset_name
+  project     = var.project_id
+  location    = var.location
+}
+
+resource "google_bigquery_table" "spotify_songs" {
+  dataset_id = google_bigquery_dataset.spotify_radu_dataset.dataset_id
+  table_id   = var.bigquery_table_id
+  project    = var.project_id
+  schema     = var.bigquery_table_schema
+}
+```
     - variables.tf → Stores reusable values (e.g., project ID, bucket name, region).
+```
+variable "credentials_file" {
+  description = "Path to the GCP Service Account Key JSON file"
+  default     = "../keys/project.json"
+}
+
+variable "project_id" {
+  description = "Google Cloud Project ID"
+  default     = "spotify-sandbox-453505"
+}
+
+variable "region" {
+  description = "GCP Region for resource deployment"
+  default     = "europe-west1" 
+}
+
+variable "location" {
+  description = "Location for BigQuery dataset (use 'EU' for multi-region)"
+  default     = "EU"
+}
+
+variable "bq_dataset_name" {
+  description = "Name of the BigQuery dataset for storing processed data"
+  default     = "spotify_radu_dataset" 
+}
+
+variable "gcs_bucket_name" {
+  description = "Name of the GCS bucket for raw data storage"
+  default     = "spotify_radu_bucket"
+}
+
+variable "gcs_storage_class" {
+  description = "Storage class for GCS bucket (STANDARD, NEARLINE, COLDLINE, ARCHIVE)"
+  default     = "STANDARD"
+}
+
+variable "bigquery_table_id" {
+  description = "Table ID for the BigQuery table"
+  default     = "spotify_top_songs"
+}
+
+variable "bigquery_table_schema" {
+  description = "Schema for the BigQuery table"
+  default = <<EOF
+[
+  {"name": "spotify_id", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "name", "type": "STRING", "mode": "REQUIRED"},
+  {"name": "artists", "type": "STRING", "mode": "REQUIRED"}, 
+  {"name": "daily_rank", "type": "INTEGER", "mode": "REQUIRED"},
+  {"name": "daily_movement", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "weekly_movement", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "country", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "snapshot_date", "type": "DATE", "mode": "REQUIRED"},
+  {"name": "popularity", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "is_explicit", "type": "BOOLEAN", "mode": "NULLABLE"},
+  {"name": "duration_ms", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "album_name", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "album_release_date", "type": "DATE", "mode": "NULLABLE"},
+  {"name": "danceability", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "energy", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "key", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "loudness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "mode", "type": "INTEGER", "mode": "NULLABLE"},
+  {"name": "speechiness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "acousticness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "instrumentalness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "liveness", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "valence", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "tempo", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "time_signature", "type": "INTEGER", "mode": "NULLABLE"}
+]
+EOF
+}
+```
 
 4. **Initialize Terraform** (only needed for the first time):
    ```bash
@@ -506,6 +631,10 @@ Kestra requires credentials to interact with Kaggle and Google Cloud. Add them s
     ```
 4. Save and Deploy the flow.
 
+![Spotify Ingestion](screenshots/spotify_ingestion.png)
+
+- orange - passed with warnings
+- green - passed without warnings
 ---
 
 ### **3️⃣ Schedule the Workflow (Daily Execution)**
@@ -1339,7 +1468,7 @@ Highlight songs that only appear in local charts and not globally
 2. Set access to **“Anyone with the link”** or restricted access
 3. View [Dashboard](https://lookerstudio.google.com/s/gmdYsehri84/)
 
-![Dashboard Preview](dashboard_screenshot.png)
+![Dashboard Preview](screenshots/dashboard_preview.png)
 
 
 ---
