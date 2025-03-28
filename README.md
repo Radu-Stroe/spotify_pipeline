@@ -17,19 +17,20 @@ The final dashboard visualizes trends, comparisons, and song-level insights by c
 
 ## **🛠️ Technologies Used**  
 
-### **📥 Data Extraction with Kaggle API**  
-This project uses the **Kaggle API** to download the dataset directly from Kaggle. The API allows automated and reproducible data extraction without manual downloads.  
-
-| **Component**              | **Technology**   | **Purpose** |
-|----------------------------|-----------------|-------------|
-| **Infrastructure as Code (IaC)** | Terraform | Provisioning cloud resources |
-| **Workflow Orchestration** | Kestra | Automating batch data ingestion |
-| **Data Storage (Datalake)** | Google Cloud Storage (GCS) | Storing raw Spotify data |
-| **Data Warehouse** | BigQuery | Storing, partitioning, and querying transformed data |
-| **Data Transformation** | dbt | Cleaning and preparing data for analysis |
-| **Visualization & Dashboard** | Looker Studio | Creating interactive reports |
+| **Component**              | **Technology**            | **Purpose**                                  |
+|----------------------------|----------------------------|----------------------------------------------|
+| **Cloud Platform**         | GCP (Google Cloud Platform) | Hosting all infrastructure and services       |
+| **Infrastructure as Code (IaC)** | Terraform               | Provisioning cloud resources                  |
+| **Workflow Orchestration** | Kestra                    | Automating batch data ingestion               |
+| **Data Storage (Datalake)** | Google Cloud Storage (GCS) | Storing raw Spotify data                      |
+| **Data Warehouse**         | BigQuery                  | Storing, partitioning, and querying data      |
+| **Data Transformation**    | dbt                       | Cleaning and preparing data for analysis      |
+| **Visualization & Dashboard** | Looker Studio           | Creating interactive reports                  |
 
 Each of these tools is chosen to ensure **scalability, automation, and reproducibility** in handling large datasets efficiently.
+
+### **📥 Data Extraction with Kaggle API**  
+This project uses the **Kaggle API** to download the dataset directly from Kaggle. The API allows automated and reproducible data extraction without manual downloads.  
 
 ---
 
@@ -162,7 +163,7 @@ resource "google_bigquery_table" "spotify_songs" {
   schema     = var.bigquery_table_schema
 }
 ```
-    - variables.tf → Stores reusable values (e.g., project ID, bucket name, region).
+  - variables.tf → Stores reusable values (e.g., project ID, bucket name, region).
 ```
 variable "credentials_file" {
   description = "Path to the GCP Service Account Key JSON file"
@@ -729,12 +730,14 @@ mkdir -p models/staging
 
 2. Create a staging model:
 ```sql
+{{ config(materialized='table') }}
+
 WITH ranked_spotify AS (
     SELECT
         spotify_id,
         name,
         artists,
-        COALESCE(country, 'GLOBAL') AS country,
+        COALESCE(country, 'Global') AS country,
         snapshot_date,
         daily_rank,
         daily_movement,
@@ -767,6 +770,12 @@ SELECT *
 FROM ranked_spotify
 WHERE rank_order = 1  
 ```
+	•	PARTITION BY spotify_id and snapshot_date
+	•	Use of ROW_NUMBER(): De-duplicate songs per day (snapshot_date) based on best daily_rank.
+	•	COALESCE(country, 'Global'): Smart defaulting of null country to "Global" – helps with grouping.
+	•	Aliased CTE (ranked_spotify): Makes the query organized and modular.
+	•	Filtering by rank_order = 1: Get the “top-ranked unique song per day”.
+
 Create a schema for staging model and add tests: 
 ```yaml
 version: 2
@@ -859,6 +868,8 @@ WITH artists AS (
 
 SELECT * FROM artists
 ```
+	•	Generate unique identifiers without relying on source system IDs
+	•	Normalize and clean data for downstream use
 
 5. Create a dim countries model:
 
@@ -873,6 +884,9 @@ WITH countries AS (
 
 SELECT * FROM countries
 ```
+	•	If country is NULL, it gets replaced with "Global" using COALESCE().
+	•	This standardizes the dataset and avoids nulls downstream.
+	•	The result is a single-column list of countries (with "Global" included).
 
 6. Create a dim dates model:
 
@@ -891,6 +905,8 @@ WITH dates AS (
 
 SELECT * FROM dates
 ```
+	•	Filter dashboards by year, month, weekday
+	•	Useful for derived metrics (like week start/end, quarters, holidays)
 
 7. Create a dim songs model:
 
@@ -940,6 +956,10 @@ SELECT
 FROM ranked_songs
 WHERE row_num = 1  
 ```
+	•	Most recent record for each spotify_id based on snapshot_date.
+	•	ROW_NUMBER() ensures the latest snapshot (useful if features evolve over time).
+	•	PARTITION BY spotify_id groups by song.
+	•	ORDER BY snapshot_date DESC ranks most recent row first.
 
 8. Create a schema for dim models and add tests: 
 
@@ -1020,6 +1040,9 @@ WITH rankings AS (
 
 SELECT * FROM rankings
 ```
+	•	Loads incrementally
+	•	Joins dimension tables
+	•	Optimizes for BigQuery
 
 11. Create a schema for fact models: 
 
@@ -1120,6 +1143,9 @@ SELECT
 FROM enriched e
 LEFT JOIN classification c ON e.spotify_id = c.spotify_id
 ```
+	•	CTEs, normalization, classification(Global vs Local)
+	•	Efficient conditional logic.
+	•	Downstream analytics.
 
 14. Create a schema for report models: 
 
@@ -1245,7 +1271,7 @@ dbt run --select fact_spotify_rankings
 dbt run --select spotify_songs_analysis
 ```
 
-•	Populate table from fact and dims, used for reporting and dashboarding
+•	This will gather data from fact and dims; used for reporting and dashboarding
 
 **Run All Models at Once**
 

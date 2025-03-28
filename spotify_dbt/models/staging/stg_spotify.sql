@@ -1,3 +1,5 @@
+{{ config(materialized='table') }}
+
 WITH ranked_spotify AS (
     SELECT
         spotify_id,
