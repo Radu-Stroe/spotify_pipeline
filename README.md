@@ -305,6 +305,8 @@ gsutil ls gs://spotify_radu_bucket/raw_data/
 gs://spotify_radu_bucket/raw_data/universal_top_spotify_songs.csv  
 ```  
 
+![GCS Bucket](screenshots/gcs_bucket.png)
+
 ### **📀 Loading Data into BigQuery**
 
 1. Verify the File in GCS
@@ -392,6 +394,8 @@ bq query --nouse_legacy_sql \
 'SELECT * FROM `spotify-sandbox-453505.spotify_radu_dataset.spotify_top_songs` LIMIT 10'
 ```
 
+![Big Query](screenshots/big_query.png)
+
 ### **🚀 Automating Data Ingestion with Kestra**  
 Now that the data is successfully loaded into **BigQuery**, the next step is to **automate the data pipeline** so that new data is **extracted, uploaded, and ingested into BigQuery** automatically.  
 
@@ -447,6 +451,8 @@ Kestra requires credentials to interact with Kaggle and Google Cloud. Add them s
      base64 keys/project.json
      ```
    - **Key:** `GCP_SERVICE_ACCOUNT` → Paste the full content of `project.json` (without encoding).
+
+![Kestra KV Store](screenshots/kv_store.png)
 
 #### **Step 2: Create a New Flow in Kestra**  
 1. In Kestra UI, go to **Flows → Create Flow**
@@ -956,9 +962,9 @@ SELECT
 FROM ranked_songs
 WHERE row_num = 1  
 ```
+	•	PARTITION BY spotify_id groups by song.
 	•	Most recent record for each spotify_id based on snapshot_date.
 	•	ROW_NUMBER() ensures the latest snapshot (useful if features evolve over time).
-	•	PARTITION BY spotify_id groups by song.
 	•	ORDER BY snapshot_date DESC ranks most recent row first.
 
 8. Create a schema for dim models and add tests: 
@@ -1144,8 +1150,8 @@ FROM enriched e
 LEFT JOIN classification c ON e.spotify_id = c.spotify_id
 ```
 	•	CTEs, normalization, classification(Global vs Local)
-	•	Efficient conditional logic.
-	•	Downstream analytics.
+	•	Efficient conditional logic
+	•	Downstream analytics
 
 14. Create a schema for report models: 
 
@@ -1300,6 +1306,8 @@ dbt test
 3. Add the following entry:
   **Key:** `DBT_PROFILES_YML` → Paste the content of your `~/.dbt/profiles.yml` file.
 
+![Kestra KV Store](screenshots/kv_store.png)
+
 #### **Step 2: Create a New Flow in Kestra**  
 
 1. In Kestra UI, go to **Flows → Create Flow**
@@ -1394,6 +1402,8 @@ tasks:
         target: dev
 ```
 4. Save and Deploy the flow.
+
+![Spotify transformation](screenshots/spotify_transformation.png)
 
 ---
 
