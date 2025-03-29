@@ -406,10 +406,10 @@ We will use **Kestra**, a powerful workflow orchestration tool, to automate this
 ### **✅ Overview of the Automated Workflow**  
 Using **Kestra**, we will create a **scheduled pipeline** that performs the following steps:
 
-1️⃣ **Extract** data from Kaggle using the **Kaggle API**  
-2️⃣ **Upload** the dataset to **Google Cloud Storage (GCS)**  
-3️⃣ **Load** data from GCS into **BigQuery**  
-4️⃣ **Schedule** the workflow to run automatically (e.g., daily)  
+	•	**Extract** data from Kaggle using the **Kaggle API**  
+	•	**Upload** the dataset to **Google Cloud Storage (GCS)**  
+	•	**Load** data from GCS into **BigQuery**  
+	•	**Schedule** the workflow to run automatically (e.g., daily)  
 
 ---
 
