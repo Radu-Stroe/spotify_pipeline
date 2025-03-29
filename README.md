@@ -779,12 +779,12 @@ SELECT *
 FROM ranked_spotify
 WHERE rank_order = 1  
 ```
-	•	Partitioning → ❌ Not necessary, can be skipped for performance
-	•	Cluster by: spotify_id, snapshot_date → quick filtering/debugging a specific song's history
-	•	Use of ROW_NUMBER(): De-duplicate songs per day (snapshot_date) based on best daily_rank.
-	•	COALESCE(country, 'Global'): Smart defaulting of null country to "Global" – helps with grouping.
-	•	Aliased CTE (ranked_spotify): Makes the query organized and modular.
-	•	Filtering by rank_order = 1: Get the “top-ranked unique song per day”.
+- **Partitioning** → ❌ Not necessary, can be skipped for performance
+- **Cluster by**: spotify_id, snapshot_date → quick filtering/debugging a specific song's history
+- Use of ROW_NUMBER(): De-duplicate songs per day (snapshot_date) based on best daily_rank.
+- COALESCE(country, 'Global'): Smart defaulting of null country to "Global" – helps with grouping.
+- Aliased CTE (ranked_spotify): Makes the query organized and modular.
+- Filtering by rank_order = 1: Get the “top-ranked unique song per day”.
 
 Create a schema for staging model and add tests: 
 ```yaml
@@ -878,9 +878,9 @@ WITH artists AS (
 
 SELECT * FROM artists
 ```
-	•	Partitioning/Clustering → ❌ Small and static - adding partitions or clusters adds overhead without benefit
-	•	Generate unique identifiers without relying on source system IDs
-	•	Normalize and clean data for downstream use
+- **Partitioning/Clustering** → ❌ Small and static - adding partitions or clusters adds overhead without benefit
+- Generate unique identifiers without relying on source system IDs
+- Normalize and clean data for downstream use
 
 5. Create a dim countries model:
 
@@ -895,10 +895,10 @@ WITH countries AS (
 
 SELECT * FROM countries
 ```
-	•	Partitioning/Clustering → ❌ Small and static - adding partitions or clusters adds overhead without benefit
-	•	If country is NULL, it gets replaced with "Global" using COALESCE().
-	•	This standardizes the dataset and avoids nulls downstream.
-	•	The result is a single-column list of countries (with "Global" included).
+- **Partitioning/Clustering** → ❌ Small and static - adding partitions or clusters adds overhead without benefit
+- If country is NULL, it gets replaced with "Global" using COALESCE().
+- This standardizes the dataset and avoids nulls downstream.
+- The result is a single-column list of countries (with "Global" included).
 
 6. Create a dim dates model:
 
@@ -917,9 +917,9 @@ WITH dates AS (
 
 SELECT * FROM dates
 ```
-	•	Partitioning/Clustering → ❌ Small and static - adding partitions or clusters adds overhead without benefit
-	•	Filter dashboards by year, month, weekday
-	•	Useful for derived metrics (like week start/end, quarters, holidays)
+- **Partitioning/Clustering** → ❌ Small and static - adding partitions or clusters adds overhead without benefit
+- Filter dashboards by year, month, weekday
+- Useful for derived metrics (like week start/end, quarters, holidays)
 
 7. Create a dim songs model:
 
@@ -969,10 +969,10 @@ SELECT
 FROM ranked_songs
 WHERE row_num = 1  
 ```
-	•	Partitioning/Clustering → ❌ Small and static - adding partitions or clusters adds overhead without benefit
-	•	Most recent record for each spotify_id based on snapshot_date
-	•	ROW_NUMBER() ensures the latest snapshot (useful if features evolve over time)
-	•	ORDER BY snapshot_date DESC ranks most recent row first
+- **Partitioning/Clustering** → ❌ Small and static - adding partitions or clusters adds overhead without benefit
+- Most recent record for each spotify_id based on snapshot_date
+- ROW_NUMBER() ensures the latest snapshot (useful if features evolve over time)
+- ORDER BY snapshot_date DESC ranks most recent row first
 
 8. Create a schema for dim models and add tests: 
 
@@ -1053,11 +1053,11 @@ WITH rankings AS (
 
 SELECT * FROM rankings
 ```
-	•	Partition by: date_id - Reduces the amount of data scanned when querying specific time periods
-  •	Cluster by: country_id - Help when filtering by country in dashboards and aggregations
-	•	Sources data from stg_spotify: cleaned staging table with raw Spotify data
-	•	Joins 3 dimension tables to bring in surrogate keys
-	•	Stores daily song rankings with artist, country, and date context
+- **Partition by**: date_id - Reduces the amount of data scanned when querying specific time periods
+- **Cluster by**: country_id - Help when filtering by country in dashboards and aggregations
+- Sources data from stg_spotify: cleaned staging table with raw Spotify data
+- Joins 3 dimension tables to bring in surrogate keys
+- Stores daily song rankings with artist, country, and date context
 
 11. Create a schema for fact models: 
 
@@ -1162,11 +1162,11 @@ SELECT
 FROM enriched e
 LEFT JOIN classification c ON e.spotify_id = c.spotify_id
 ```
-	•	Partition by: date_id - Faster queries and reduced scanned data when filtering by time
-	•	Cluster by: country_id, song_name - Improves performance for filters like “Global vs. RO” or “select a song
-	•	Normalization & Classification(Global vs Local)
-	•	Efficient conditional logic
-	•	Downstream analytics
+- **Partition by**: date_id - Faster queries and reduced scanned data when filtering by time
+- **Cluster by**: country_id, song_name - Improves performance for filters like “Global vs. RO” or “select a song
+- Normalization & Classification(Global vs Local)
+- Efficient conditional logic
+- Downstream analytics
 
 14. Create a schema for report models: 
 
