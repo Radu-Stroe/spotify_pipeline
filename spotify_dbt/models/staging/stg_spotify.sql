@@ -1,7 +1,6 @@
 {{ config(
     materialized='table',
-    partition_by={"field": "date_id", "data_type": "DATE"},
-    cluster_by=["country_id", "song_name"]
+    cluster_by=["spotify_id", "snapshot_date"]
 ) }}
 
 WITH ranked_spotify AS (
