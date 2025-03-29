@@ -874,6 +874,7 @@ WITH artists AS (
 
 SELECT * FROM artists
 ```
+	•	Partitioning/Clustering → ❌ Adding partitions or clusters adds overhead without benefit
 	•	Generate unique identifiers without relying on source system IDs
 	•	Normalize and clean data for downstream use
 
@@ -890,6 +891,7 @@ WITH countries AS (
 
 SELECT * FROM countries
 ```
+	•	Partitioning/Clustering → ❌ Adding partitions or clusters adds overhead without benefit
 	•	If country is NULL, it gets replaced with "Global" using COALESCE().
 	•	This standardizes the dataset and avoids nulls downstream.
 	•	The result is a single-column list of countries (with "Global" included).
@@ -911,6 +913,7 @@ WITH dates AS (
 
 SELECT * FROM dates
 ```
+	•	Partitioning/Clustering → ❌ Adding partitions or clusters adds overhead without benefit
 	•	Filter dashboards by year, month, weekday
 	•	Useful for derived metrics (like week start/end, quarters, holidays)
 
@@ -1046,9 +1049,11 @@ WITH rankings AS (
 
 SELECT * FROM rankings
 ```
-	•	Loads incrementally
-	•	Joins dimension tables
-	•	Optimizes for BigQuery
+	•	PARTITION BY: date_id - Reduces the amount of data scanned when querying specific time periods
+  •	CLUSTER BY: country_id - Help when filtering by country in dashboards and aggregations
+	•	Sources data from stg_spotify: cleaned staging table with raw Spotify data
+	•	Joins 3 dimension tables to bring in surrogate keys
+	•	Stores daily song rankings with artist, country, and date context
 
 11. Create a schema for fact models: 
 
@@ -1078,7 +1083,11 @@ mkdir -p models/report
 13. Create a spotify songs analysis model:
 
 ```sql
-{{ config(materialized='table') }}
+{{ config(
+    materialized='table',
+    partition_by={"field": "date_id", "data_type": "DATE"},
+    cluster_by=["country_id", "song_name"]
+) }}
 
 WITH enriched AS (
     SELECT
@@ -1149,7 +1158,9 @@ SELECT
 FROM enriched e
 LEFT JOIN classification c ON e.spotify_id = c.spotify_id
 ```
-	•	CTEs, normalization, classification(Global vs Local)
+	•	PARTITION BY: date_id - Faster queries and reduced scanned data when filtering by time
+	•	CLUSTER BY: country_id, song_name - Improves performance for filters like “Global vs. RO” or “select a song
+	•	Normalization & Classification(Global vs Local)
 	•	Efficient conditional logic
 	•	Downstream analytics
 
