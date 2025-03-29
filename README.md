@@ -1424,7 +1424,7 @@ tasks:
 
 ## 📊 Looker Studio: Connecting & Visualizing `spotify_songs_analysis`
 
-Let's connect newly created `spotify_songs_analysis` table with Looker, so you can build charts that directly support your project’s three key insights.
+Connect `spotify_songs_analysis` table with Looker; build charts that directly support project’s three key insights.
 
 ---
 
