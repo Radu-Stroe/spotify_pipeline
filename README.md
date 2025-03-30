@@ -745,7 +745,8 @@ WITH ranked_spotify AS (
     SELECT
         spotify_id,
         name,
-        artists,
+        TRIM(SPLIT(artists, ',')[OFFSET(0)]) AS artist_name,
+        artists AS full_artists,
         COALESCE(country, 'Global') AS country,
         snapshot_date,
         daily_rank,
@@ -871,8 +872,8 @@ mkdir -p models/dim
 
 WITH artists AS (
     SELECT DISTINCT
-        artists,
-        TO_HEX(MD5(artists)) AS artist_id
+        artist_name,
+        TO_HEX(MD5(artist_name)) AS artist_id
     FROM {{ ref('stg_spotify') }}
 )
 
