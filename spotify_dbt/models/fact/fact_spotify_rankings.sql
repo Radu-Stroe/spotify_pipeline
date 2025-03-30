@@ -18,7 +18,7 @@ WITH rankings AS (
         s.is_explicit,
         s.duration_ms
     FROM {{ ref('stg_spotify') }} s
-    LEFT JOIN {{ ref('dim_artists') }} a ON s.artists = a.artists
+    LEFT JOIN {{ ref('dim_artists') }} a ON s.artist_name = a.artist_name
     LEFT JOIN {{ ref('dim_countries') }} c ON s.country = c.country_id
     LEFT JOIN {{ ref('dim_dates') }} d ON s.snapshot_date = d.date_id
     {% if is_incremental() %}

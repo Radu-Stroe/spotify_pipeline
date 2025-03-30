@@ -12,7 +12,7 @@ WITH enriched AS (
         s.album_release_date,
 
         f.artist_id,
-        a.artists AS artist_name,
+        a.artist_name,
 
         f.country_id,
         f.date_id,

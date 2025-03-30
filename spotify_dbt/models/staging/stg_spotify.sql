@@ -7,7 +7,8 @@ WITH ranked_spotify AS (
     SELECT
         spotify_id,
         name,
-        artists,
+        TRIM(SPLIT(artists, ',')[OFFSET(0)]) AS artist_name,  -- first artist only
+        artists AS full_artists,
         COALESCE(country, 'Global') AS country,
         snapshot_date,
         daily_rank,

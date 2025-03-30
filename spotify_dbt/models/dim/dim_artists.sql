@@ -2,8 +2,8 @@
 
 WITH artists AS (
     SELECT DISTINCT
-        artists,
-        TO_HEX(MD5(artists)) AS artist_id
+        artist_name,
+        TO_HEX(MD5(artist_name)) AS artist_id
     FROM {{ ref('stg_spotify') }}
 )
 
