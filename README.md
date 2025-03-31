@@ -1313,7 +1313,7 @@ dbt test
 
 
 
-### 5️⃣ Automate dbt Transformations
+### 6️⃣ Automate dbt Transformations
 
 #### **Step 1: Add dbt profiles to KV Store**  
 **Kestra KV Store**:
