@@ -418,8 +418,10 @@ Using **Kestra**, we will create a **scheduled pipeline** that performs the foll
 ### **1️⃣ Install & Run Kestra**  
 We have 2 options here: 
 - Run Kestra with GCP VM:
-`https://kestra.io/docs/installation/gcp-vm?utm_source=YouTube&utm_medium=Video&utm_campaign=Description&utm_content=GCP&clid=eyJpIjoib0FFSWl6cVQ3MUNNOU44S0QzRFppIiwiaCI6IiIsInAiOiIvaW5zdGFsbC9nY3AiLCJ0IjoxNzQzNDQ3MTA5fQ._Qua2bldA3wo_6Az81cC5DvwLfcLT57DXIA0KgEKpio`
+
+[Kestra install](https://kestra.io/docs/installation/gcp-vm?utm_source=YouTube&utm_medium=Video&utm_campaign=Description&utm_content=GCP&clid=eyJpIjoib0FFSWl6cVQ3MUNNOU44S0QzRFppIiwiaCI6IiIsInAiOiIvaW5zdGFsbC9nY3AiLCJ0IjoxNzQzNDQ3MTA5fQ._Qua2bldA3wo_6Az81cC5DvwLfcLT57DXIA0KgEKpio)
 - Run Kestra locally - easy to reproduce:
+
 To run Kestra locally, you need **Docker**. If Docker is not installed, install it using:
 
 - **For macOS (using Homebrew):**  
@@ -441,12 +443,12 @@ docker run --pull=always --rm -it -p 8080:8080 --user=root -v /var/run/docker.so
 ---
 
 ### **2️⃣ Configure Kestra Web Interface**  
-Once Kestra is running at **http://localhost:8080/**, follow these steps to set up credentials and create the ingestion flow:
+Once Kestra is running at **http://localhost:8080/**(or external IP:8080), follow these steps to set up credentials and create the ingestion flow:
 
 #### **Step 1: Add Kaggle and GCP Credentials to KV Store**  
 Kestra requires credentials to interact with Kaggle and Google Cloud. Add them securely to the **Kestra KV Store**:
 
-1. Navigate to **http://localhost:8080/**
+1. Navigate to **http://localhost:8080/**(or external IP:8080)
 2. Go to **Namespaces → spotify_pipeline → KV Store**
 3. Add the following entries:
    - **Key:** `KAGGLE_JSON` → Paste the content of your `kaggle.json` file.
@@ -1321,7 +1323,7 @@ dbt test
 
 #### **Step 1: Add dbt profiles to KV Store**  
 **Kestra KV Store**:
-1. Navigate to **http://localhost:8080/**
+1. Navigate to **http://localhost:8080/**(or external IP:8080)
 2. Go to **Namespaces → spotify_pipeline → KV Store**
 3. Add the following entry:
   **Key:** `DBT_PROFILES_YML` → Paste the content of your `~/.dbt/profiles.yml` file.
