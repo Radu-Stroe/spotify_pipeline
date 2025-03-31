@@ -443,12 +443,12 @@ docker run --pull=always --rm -it -p 8080:8080 --user=root -v /var/run/docker.so
 ---
 
 ### **2️⃣ Configure Kestra Web Interface**  
-Once Kestra is running at **http://localhost:8080/**(or external IP:8080), follow these steps to set up credentials and create the ingestion flow:
+Once Kestra is running at **http://localhost:8080/** (or external IP:8080), follow these steps to set up credentials and create the ingestion flow:
 
 #### **Step 1: Add Kaggle and GCP Credentials to KV Store**  
 Kestra requires credentials to interact with Kaggle and Google Cloud. Add them securely to the **Kestra KV Store**:
 
-1. Navigate to **http://localhost:8080/**(or external IP:8080)
+1. Navigate to **http://localhost:8080/** (or external IP:8080)
 2. Go to **Namespaces → spotify_pipeline → KV Store**
 3. Add the following entries:
    - **Key:** `KAGGLE_JSON` → Paste the content of your `kaggle.json` file.
@@ -1323,7 +1323,7 @@ dbt test
 
 #### **Step 1: Add dbt profiles to KV Store**  
 **Kestra KV Store**:
-1. Navigate to **http://localhost:8080/**(or external IP:8080)
+1. Navigate to **http://localhost:8080/** (or external IP:8080)
 2. Go to **Namespaces → spotify_pipeline → KV Store**
 3. Add the following entry:
   **Key:** `DBT_PROFILES_YML` → Paste the content of your `~/.dbt/profiles.yml` file.
