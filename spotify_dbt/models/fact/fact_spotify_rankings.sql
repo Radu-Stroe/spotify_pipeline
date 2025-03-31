@@ -1,5 +1,5 @@
 {{ config(
-    materialized='incremental',
+    materialized='table',
     unique_key='spotify_id',
     partition_by={"field": "date_id", "data_type": "DATE"},
     cluster_by=["country_id"]

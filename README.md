@@ -415,7 +415,11 @@ Using **Kestra**, we will create a **scheduled pipeline** that performs the foll
 
 ### **📌 Steps to Set Up Kestra for Automation**
 
-### **1️⃣ Install & Run Kestra Locally**  
+### **1️⃣ Install & Run Kestra**  
+We have 2 options here: 
+- Run Kestra with GCP VM:
+`https://kestra.io/docs/installation/gcp-vm?utm_source=YouTube&utm_medium=Video&utm_campaign=Description&utm_content=GCP&clid=eyJpIjoib0FFSWl6cVQ3MUNNOU44S0QzRFppIiwiaCI6IiIsInAiOiIvaW5zdGFsbC9nY3AiLCJ0IjoxNzQzNDQ3MTA5fQ._Qua2bldA3wo_6Az81cC5DvwLfcLT57DXIA0KgEKpio`
+- Run Kestra locally - easy to reproduce:
 To run Kestra locally, you need **Docker**. If Docker is not installed, install it using:
 
 - **For macOS (using Homebrew):**  
@@ -1025,7 +1029,7 @@ mkdir -p models/fact
 
 ```sql
 {{ config(
-    materialized='incremental',
+    materialized='table',
     unique_key='spotify_id',
     partition_by={"field": "date_id", "data_type": "DATE"},
     cluster_by=["country_id"]
